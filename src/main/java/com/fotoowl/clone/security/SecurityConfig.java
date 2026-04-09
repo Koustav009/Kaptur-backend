@@ -67,6 +67,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth ->
                         auth.requestMatchers("/auth/**").permitAll() // Anyone can register/login.
                                 .requestMatchers("/oauth2/**").permitAll() // Google OAuth path is public.
+                                .requestMatchers("/v3/api-docs/**").permitAll()
+                                .requestMatchers("/swagger-ui/**").permitAll()
+                                .requestMatchers("/swagger-ui.html").permitAll()
                                 .anyRequest().authenticated() // ALL other URLs require a valid JWT!
                 )
                 // 4. Configure Google OAuth login.
