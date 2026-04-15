@@ -1,5 +1,6 @@
 package com.fotoowl.clone.security;
 
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -72,15 +73,23 @@ public class SecurityConfig {
                                 .requestMatchers("/swagger-ui.html").permitAll()
                                 .anyRequest().authenticated() // ALL other URLs require a valid JWT!
                 )
-                // 4. Configure Google OAuth login.
+                // 4. Handle authentication errors (Instead of redirecting to Google Login).
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            // We return 401 Unauthorized instead of a 302 Redirect.
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.getWriter().write("Error: Unauthorized - Please Login First");
+                        })
+                )
+                // 5. Configure Google OAuth login.
                 .oauth2Login(oauth2 -> oauth2
                         .successHandler(oAuth2AuthenticationSuccessHandler)
                 );
 
-        // 5. Connect our user database check.
+        // 6. Connect our user database check.
         http.authenticationProvider(authenticationProvider());
         
-        // 6. Add our JWT Guard (Filter) before the standard username/password guard.
+        // 7. Add our JWT Guard (Filter) before the standard username/password guard.
         http.addFilterBefore(authTokenFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

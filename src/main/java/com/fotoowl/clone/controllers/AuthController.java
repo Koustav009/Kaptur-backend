@@ -1,6 +1,7 @@
 package com.fotoowl.clone.controllers;
 
 import com.fotoowl.clone.dto.AuthResponse;
+import com.fotoowl.clone.dto.GoogleLoginRequest;
 import com.fotoowl.clone.dto.LoginRequest;
 import com.fotoowl.clone.dto.RegisterRequest;
 import com.fotoowl.clone.services.AuthService;
@@ -30,6 +31,17 @@ public class AuthController {
         // We delegate the heavy work to the Service layer.
         AuthResponse response = authService.authenticateUser(loginRequest);
         return ResponseEntity.ok(response); // Returns 200 OK with the JWT token.
+    }
+
+    /**
+     * @PostMapping("/google") handles Native Google Login from Flutter.
+     * We receive the user data from Flutter, verify it, and issue our backend's JWT.
+     */
+    @PostMapping("/google")
+    public ResponseEntity<?> googleLogin(@RequestBody GoogleLoginRequest request) {
+        // Exchange Google data for our backend's JWT token.
+        AuthResponse response = authService.googleLogin(request);
+        return ResponseEntity.ok(response);
     }
 
     /**

@@ -1,54 +1,35 @@
-# Project Overview: Fotoowl Clone Backend
+# Gemini Mandates: Fotoowl Clone Backend
 
-This is a backend project for a Fotoowl clone, built with **Spring Boot** and **Java 21**. It follows a standard Maven project structure and provides a RESTful API for handling authentication and potentially other features related to photo management.
+This file serves as the foundational guide for the Gemini agent. These instructions take absolute precedence over general defaults.
 
-## Main Technologies
-- **Framework:** Spring Boot 4.0.x
-- **Language:** Java 21
-- **Database:** MySQL (using Spring Data JPA / Hibernate)
-- **Security:** Spring Security
-- **Monitoring:** Spring Boot Actuator
-- **Utilities:** Project Lombok (for boilerplate reduction)
-- **Build Tool:** Maven (via `mvnw` wrapper)
+## Project Context
+A modern Spring Boot backend for a photo management application, emphasizing security, scalability, and ease of understanding for developers in a learning phase.
 
-## Architecture
-The project follows a typical layered architecture for Spring Boot applications:
-- **`com.fotoowl.clone.controllers`**: REST Controllers for handling HTTP requests.
-- **`com.fotoowl.clone.services`**: Business logic layer.
-- **`com.fotoowl.clone.repository`**: Data access layer (Spring Data JPA repositories).
-- **`com.fotoowl.clone.model`**: Domain entities and data models.
+## Tech Stack & Specifications
+- **Java Version:** 21 (LTS)
+- **Spring Boot:** 4.0.5
+- **Database:** MySQL (local instance `fotoowl`)
+- **Security:** Spring Security with JWT (jjwt 0.12.6) and OAuth2 (Google Login).
+- **API Documentation:** SpringDoc / Swagger UI (accessible at `/swagger-ui/index.html`).
+- **Build Tool:** Maven (utilize `mvnw.cmd` on Windows).
 
-## Building and Running
+## Core Architectural Mandates
+1. **Layered Architecture:** Strictly maintain the separation between `controllers`, `services`, `repository`, and `model`.
+2. **DTO Usage:** Always use Data Transfer Objects (DTOs) for request/response payloads. Never expose raw JPA entities in controllers.
+3. **Lombok Usage:** Use `@RequiredArgsConstructor` for constructor-based dependency injection. Use `@Data` for DTOs and `@Entity` with `@Getter`/`@Setter` for models.
+4. **Validation:** Implement proper request validation using Spring's validation annotations where applicable.
 
-### Build the Project
-To compile and package the project into a JAR file:
-```powershell
-.\mvnw.cmd clean install
-```
-*(On Unix-like systems, use `./mvnw` instead)*
+## 🎓 Junior Developer Learning Mandate (CRITICAL)
+The user is in a **learning phase**. Gemini MUST adhere to these stylistic rules:
+- **Verbose Commenting:** Every class and non-trivial method must have comments explaining *what* it does and *why* it exists in simple, easy-to-understand terms.
+- **Code Clarity:** Prioritize readable code over clever "one-liners." Use descriptive variable names.
+- **Educational Explanations:** When suggesting changes or writing code, provide a brief "Why we do this" section in the response.
 
-### Run the Application
-To start the Spring Boot application:
-```powershell
-.\mvnw.cmd spring-boot:run
-```
+## Development Workflows
+- **Database Changes:** Rely on `spring.jpa.hibernate.ddl-auto=update` for local development.
+- **Testing:** Run tests using `.\mvnw.cmd test`. Always verify changes with unit tests in `src/test/java`.
+- **Environment:** Respect settings in `src/main/resources/application.properties`. Do not hardcode secrets like JWT keys.
 
-### Run Tests
-To execute the unit and integration tests:
-```powershell
-.\mvnw.cmd test
-```
-
-## Development Conventions
-- **Naming:** Follow standard Java camelCase for variables/methods and PascalCase for classes.
-- **Lombok:** Use Lombok annotations like `@Data`, `@RequiredArgsConstructor`, and `@Getter`/`@Setter` to reduce boilerplate.
-- **Dependency Injection:** Prefer constructor injection (facilitated by Lombok's `@RequiredArgsConstructor`).
-- **API Versioning:** Currently, APIs are prefixed with their specific functional area (e.g., `/auth`).
-- **Configuration:** Database settings, server port, and JPA properties are managed in `src/main/resources/application.properties`.
-
-## Database Configuration
-The application is configured to connect to a local MySQL instance:
-- **URL:** `jdbc:mysql://localhost:3306/fotoowl`
-- **Username:** `root`
-- **Password:** `12345`
-- **Hibernate DDL Auto:** `update` (automatically manages schema changes)
+## API Standards
+- **Prefixes:** Group related endpoints under common paths (e.g., `/auth/**`).
+- **Responses:** Always return `ResponseEntity<?>` from controllers to ensure consistent HTTP status codes.
