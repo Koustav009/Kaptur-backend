@@ -6,6 +6,8 @@ import com.fotoowl.clone.dto.LoginRequest;
 import com.fotoowl.clone.dto.RegisterRequest;
 import com.fotoowl.clone.services.AuthService;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -51,7 +53,7 @@ public class AuthController {
     public ResponseEntity<?> registerUser(@RequestBody RegisterRequest registerRequest) {
         // We call the Service to save the user in the database.
         String result = authService.registerUser(registerRequest);
-        return ResponseEntity.ok(result);
+        return new ResponseEntity<>(result, HttpStatus.CREATED);
     }
 
     /**

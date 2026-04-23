@@ -8,7 +8,7 @@ A modern Spring Boot backend for a photo management application, emphasizing sec
 ## Tech Stack & Specifications
 - **Java Version:** 21 (LTS)
 - **Spring Boot:** 4.0.5
-- **Database:** MySQL (local instance `fotoowl`)
+- **Database:** PostgreSQL (local instance `fotoowl`)
 - **Security:** Spring Security with JWT (jjwt 0.12.6) and OAuth2 (Google Login).
 - **API Documentation:** SpringDoc / Swagger UI (accessible at `/swagger-ui/index.html`).
 - **Build Tool:** Maven (utilize `mvnw.cmd` on Windows).
