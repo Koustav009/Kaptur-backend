@@ -1,7 +1,7 @@
 package com.fotoowl.clone.security;
 
-import com.fotoowl.clone.model.AuthProvider;
 import com.fotoowl.clone.model.User;
+import com.fotoowl.clone.model.enums.AuthProvider;
 import com.fotoowl.clone.repository.UserRepository;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,7 +27,8 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     private final UserRepository userRepository;
 
     @Override
-    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
+    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
+            Authentication authentication) throws IOException, ServletException {
         // 1. Get user details from Google.
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
         String email = oAuth2User.getAttribute("email");
@@ -58,7 +59,8 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         // 3. Generate a JWT token for our backend.
         String token = jwtUtils.generateTokenFromUsername(email);
 
-        // 4. Redirect the browser to the Frontend (React/Angular) with the token in the URL.
+        // 4. Redirect the browser to the Frontend (React/Angular) with the token in the
+        // URL.
         String targetUrl = UriComponentsBuilder.fromUriString("http://localhost:3000/oauth2/redirect")
                 .queryParam("token", token)
                 .build().toUriString();

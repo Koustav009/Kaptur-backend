@@ -4,8 +4,8 @@ import com.fotoowl.clone.dto.AuthResponse;
 import com.fotoowl.clone.dto.LoginRequest;
 import com.fotoowl.clone.dto.RegisterRequest;
 import com.fotoowl.clone.dto.GoogleLoginRequest;
-import com.fotoowl.clone.model.AuthProvider;
 import com.fotoowl.clone.model.User;
+import com.fotoowl.clone.model.enums.AuthProvider;
 import com.fotoowl.clone.repository.UserRepository;
 import com.fotoowl.clone.security.JwtUtils;
 import lombok.RequiredArgsConstructor;
@@ -20,8 +20,8 @@ import java.util.Optional;
 
 /**
  * @Service is where the "Business Logic" lives.
- * It's where we do calculations, check database, and perform logic.
- * We inject repositories and other tools (like PasswordEncoder) here.
+ *          It's where we do calculations, check database, and perform logic.
+ *          We inject repositories and other tools (like PasswordEncoder) here.
  */
 @Service
 @RequiredArgsConstructor
@@ -32,8 +32,22 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder; // Encrypts passwords
     private final JwtUtils jwtUtils; // Generates tokens
 
+    private void createUser(User user) {
+        // get next KPT id ;
+        // then set it;
+
+        Long nextSeq = userRepository.getNextKptSequence();
+        // EX : KPT0000001
+        String kptId = String.format("KPT%07d", nextSeq);
+
+        user.setKptId(kptId);
+
+        userRepository.save(user);
+    }
+
     /**
-     * This method handles the logic when a user tries to log in with email and password.
+     * This method handles the logic when a user tries to log in with email and
+     * password.
      */
     public AuthResponse authenticateUser(LoginRequest loginRequest) {
         // 1. We ask the AuthenticationManager to check the email and password.
@@ -42,8 +56,9 @@ public class AuthService {
 
         // 2. If valid, we store the authentication info in the Security Context.
         SecurityContextHolder.getContext().setAuthentication(authentication);
-        
-        // 3. We generate a JWT token so the user stays logged in for their next requests.
+
+        // 3. We generate a JWT token so the user stays logged in for their next
+        // requests.
         String jwt = jwtUtils.generateJwtToken(authentication);
 
         return new AuthResponse(jwt);
@@ -51,7 +66,7 @@ public class AuthService {
 
     /**
      * This method handles Native Google Login from Flutter.
-     * It checks if the Google user already exists in our DB, saves them if not, 
+     * It checks if the Google user already exists in our DB, saves them if not,
      * and returns a JWT for them to use in our app.
      */
     public AuthResponse googleLogin(GoogleLoginRequest request) {
@@ -75,7 +90,7 @@ public class AuthService {
                     .provider(AuthProvider.GOOGLE)
                     .providerId(request.getId())
                     .build();
-            userRepository.save(user);
+            createUser(user);
         }
 
         // 3. Generate our application's JWT for this user.
@@ -84,7 +99,8 @@ public class AuthService {
     }
 
     /**
-     * This method handles the logic to create a new user account with email and password.
+     * This method handles the logic to create a new user account with email and
+     * password.
      */
     public String registerUser(RegisterRequest registerRequest) {
         // 1. Check if the email is already registered.
@@ -102,7 +118,7 @@ public class AuthService {
                 .build();
 
         // 3. Save the new user to the MySQL database.
-        userRepository.save(user);
+        createUser(user);
 
         return "User registered successfully!";
     }

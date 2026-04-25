@@ -1,5 +1,7 @@
 package com.fotoowl.clone.model;
 
+import com.fotoowl.clone.model.enums.AuthProvider;
+
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -7,7 +9,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * @Entity tells Spring Data JPA that this class represents a table in the database.
+ * @Entity tells Spring Data JPA that this class represents a table in the
+ *         database.
  * @Table(name = "users") specifies the name of the table.
  * @Data (from Lombok) automatically creates Getters, Setters, toString, etc.
  */
@@ -23,6 +26,9 @@ public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(unique = true, nullable = false, updatable = false)
+    private String kptId;
 
     // unique = true means two users cannot have the same email.
     @Column(nullable = false, unique = true)

@@ -1,4 +1,4 @@
-package com.fotoowl.clone.model;
+package com.fotoowl.clone.model.enums;
 
 /**
  * This Enum defines the types of login methods we support.
