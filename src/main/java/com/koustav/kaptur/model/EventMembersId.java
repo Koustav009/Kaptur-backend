@@ -11,6 +11,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class EventMembersId implements Serializable {
 
-    private String event; // ← must match field NAME in entity (not column name)
-    private String user; // ← must match field NAME in entity
+    private Long event; // ← matches the ID type of the Event entity
+    private Long user;  // ← matches the ID type of the User entity
 }

@@ -1,10 +1,10 @@
-package com.fotoowl.clone;
+package com.koustav.kaptur;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class CloneApplicationTests {
+class KapturApplicationTests {
 
 	@Test
 	void contextLoads() {

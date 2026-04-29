@@ -11,5 +11,15 @@ import com.koustav.kaptur.model.Event;
 
 @Repository
 public interface EventRepository extends JpaRepository<Event, Long> {
-    List<Event> findByCreatedByUserId(Long userId);
+    
+    /**
+     * Finds all events created by a specific user.
+     * Spring Data JPA parses this method name to create a query.
+     */
+    List<Event> findByCreatedById(Long userId);
+    
+    /**
+     * Finds events by their custom public ID (evntid).
+     */
+    java.util.Optional<Event> findByEvntid(String evntid);
 }

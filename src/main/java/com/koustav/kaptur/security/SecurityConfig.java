@@ -1,6 +1,5 @@
 package com.koustav.kaptur.security;
 
-
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -17,8 +16,8 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
- * This is the central configuration for Spring Security.
- * It defines which URLs are public and which are private.
+ * This is the central configuration for Spring Security. It defines which URLs
+ * are public and which are private.
  */
 @Configuration
 @EnableWebSecurity
@@ -30,8 +29,8 @@ public class SecurityConfig {
     private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
 
     /**
-     * Tells Spring Security how to find users (using UserDetailsService) 
-     * and how to check passwords (using BCrypt).
+     * Tells Spring Security how to find users (using UserDetailsService) and how to
+     * check passwords (using BCrypt).
      */
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
@@ -63,33 +62,33 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         // 1. Disable CSRF (not needed for JWT-based REST APIs).
         http.csrf(csrf -> csrf.disable())
+
                 // 2. Set Session policy to STATELESS (don't use cookies, use tokens).
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
                 // 3. Set public and private URLs.
-                .authorizeHttpRequests(auth ->
-                        auth.requestMatchers("/auth/**").permitAll() // Anyone can register/login.
-                                .requestMatchers("/oauth2/**").permitAll() // Google OAuth path is public.
-                                .requestMatchers("/v3/api-docs/**").permitAll()
-                                .requestMatchers("/swagger-ui/**").permitAll()
-                                .requestMatchers("/swagger-ui.html").permitAll()
-                                .anyRequest().authenticated() // ALL other URLs require a valid JWT!
+                .authorizeHttpRequests(auth -> auth.requestMatchers("/auth/**").permitAll() // Anyone can login and
+                                                                                            // register.
+                        .requestMatchers("/oauth2/**").permitAll() // Google OAuth path is public.
+                        .requestMatchers("/v3/api-docs/**").permitAll() // Swagger docs
+                        .requestMatchers("/swagger-ui/**").permitAll() // Swagger UI
+                        .requestMatchers("/swagger-ui.html").permitAll() // Swagger UI
+                        .requestMatchers("/tusd/**").permitAll() // Swagger docs
+                        .anyRequest().authenticated() // ALL other URLs require a valid JWT!
                 )
                 // 4. Handle authentication errors (Instead of redirecting to Google Login).
-                .exceptionHandling(exception -> exception
-                        .authenticationEntryPoint((request, response, authException) -> {
+                .exceptionHandling(
+                        exception -> exception.authenticationEntryPoint((request, response, authException) -> {
                             // We return 401 Unauthorized instead of a 302 Redirect.
                             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                             response.getWriter().write("Error: Unauthorized - Please Login First");
-                        })
-                )
+                        }))
                 // 5. Configure Google OAuth login.
-                .oauth2Login(oauth2 -> oauth2
-                        .successHandler(oAuth2AuthenticationSuccessHandler)
-                );
+                .oauth2Login(oauth2 -> oauth2.successHandler(oAuth2AuthenticationSuccessHandler));
 
         // 6. Connect our user database check.
         http.authenticationProvider(authenticationProvider());
-        
+
         // 7. Add our JWT Guard (Filter) before the standard username/password guard.
         http.addFilterBefore(authTokenFilter, UsernamePasswordAuthenticationFilter.class);
 

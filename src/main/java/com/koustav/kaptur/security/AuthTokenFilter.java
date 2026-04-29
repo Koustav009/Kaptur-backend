@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
@@ -14,10 +15,11 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
 /**
- * This Filter runs EVERY time we get an API request.
- * It's the "Security Guard" checking if the user has a valid ID card (JWT).
+ * This Filter runs EVERY time we get an API request. It's the "Security Guard"
+ * checking if the user has a valid ID card (JWT).
  */
 @Component
 @RequiredArgsConstructor
@@ -42,8 +44,9 @@ public class AuthTokenFilter extends OncePerRequestFilter {
                 String username = jwtUtils.getUserNameFromJwtToken(jwt);
 
                 // 4. Load the user from the database.
-                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                
+                User userDetails = new org.springframework.security.core.userdetails.User(username, "",
+                        new ArrayList<>());
+
                 // 5. Create an authentication object.
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                         userDetails, null, userDetails.getAuthorities());
