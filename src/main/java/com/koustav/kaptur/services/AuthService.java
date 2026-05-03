@@ -1,9 +1,8 @@
 package com.koustav.kaptur.services;
 
-
 import lombok.RequiredArgsConstructor;
 
-
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -11,6 +10,11 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken.Payload;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
 import com.koustav.kaptur.dto.AuthResponse;
 import com.koustav.kaptur.dto.GoogleLoginRequest;
 import com.koustav.kaptur.dto.LoginRequest;
@@ -20,12 +24,13 @@ import com.koustav.kaptur.model.enums.AuthProvider;
 import com.koustav.kaptur.repository.UserRepository;
 import com.koustav.kaptur.security.JwtUtils;
 
+import java.util.Collections;
 import java.util.Optional;
 
 /**
- * @Service is where the "Business Logic" lives.
- *          It's where we do calculations, check database, and perform logic.
- *          We inject repositories and other tools (like PasswordEncoder) here.
+ * @Service is where the "Business Logic" lives. It's where we do calculations,
+ *          check database, and perform logic. We inject repositories and other
+ *          tools (like PasswordEncoder) here.
  */
 @Service
 @RequiredArgsConstructor
@@ -35,6 +40,11 @@ public class AuthService {
     private final UserRepository userRepository; // Access to DB
     private final PasswordEncoder passwordEncoder; // Encrypts passwords
     private final JwtUtils jwtUtils; // Generates tokens
+
+    // Your Google Client ID from Google Cloud Console.
+    // This MUST match the clientId used in your Flutter app.
+    @Value("${google.client-id}")
+    private String googleClientId;
 
     private void createUser(User user) {
         // save user first to get the id
@@ -67,35 +77,97 @@ public class AuthService {
     }
 
     /**
-     * This method handles Native Google Login from Flutter.
-     * It checks if the Google user already exists in our DB, saves them if not,
-     * and returns a JWT for them to use in our app.
+     * This method handles Native Google Login from Flutter. It checks if the Google
+     * user already exists in our DB, saves them if not, and returns a JWT for them
+     * to use in our app.
      */
-    public AuthResponse googleLogin(GoogleLoginRequest request) {
-        // 1. Search for a user with this email in our database.
-        Optional<User> userOptional = userRepository.findByEmail(request.getEmail());
+    // public AuthResponse googleLogin(GoogleLoginRequest request) {
+    // // 1. Search for a user with this email in our database.
+    // Optional<User> userOptional = userRepository.findByEmail(request.getEmail());
+    // User user;
+
+    // if (userOptional.isPresent()) {
+    // user = userOptional.get();
+    // // If the user already exists, update their name and photo just in case.
+    // user.setName(request.getName());
+    // user.setImageUrl(request.getPhotoUrl());
+    // userRepository.save(user);
+    // } else {
+    // // 2. If the user doesn't exist, this is their first time logging in!
+    // // We create a new User object with Google as the provider.
+    // user =
+    // User.builder().email(request.getEmail()).name(request.getName()).imageUrl(request.getPhotoUrl())
+    // .provider(AuthProvider.GOOGLE).providerId(request.getId()).build();
+    // createUser(user);
+    // }
+
+    // // 3. Generate our application's JWT for this user.
+    // String token = jwtUtils.generateTokenFromUsername(user.getEmail());
+    // return new AuthResponse(token);
+    // }
+
+    public AuthResponse googleLogin2(GoogleLoginRequest request) {
+
+        // ---------------------------------------------------------------
+        // STEP 1: Build a GoogleIdTokenVerifier.
+        // This verifier hits Google's public JWKS endpoint to validate
+        // the token signature, expiry, and audience (your client ID).
+        // ---------------------------------------------------------------
+        GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), // standard HTTP
+                                                                                                   // transport
+                GsonFactory.getDefaultInstance())
+                        // "audience" must be YOUR app's Google Client ID.
+                        // Google will reject tokens not intended for your app.
+                        .setAudience(Collections.singletonList(googleClientId)).build();
+
+        // ---------------------------------------------------------------
+        // STEP 2: Verify the raw ID token string from the Flutter app.
+        // If invalid (expired, wrong audience, bad signature), returns null.
+        // ---------------------------------------------------------------
+        GoogleIdToken idToken;
+        try {
+            idToken = verifier.verify(request.getId());
+        } catch (Exception e) {
+            throw new RuntimeException("Google token verification failed: " + e.getMessage());
+        }
+
+        if (idToken == null) {
+            throw new RuntimeException("Invalid or expired Google ID token");
+        }
+
+        // ---------------------------------------------------------------
+        // STEP 3: Extract user info from the verified token's payload.
+        // No need to trust what the Flutter app sends — read it from here.
+        // ---------------------------------------------------------------
+        Payload payload = idToken.getPayload();
+
+        String email = payload.getEmail();
+        String name = (String) payload.get("name");
+        String pictureUrl = (String) payload.get("picture");
+        String googleId = payload.getSubject(); // Google's unique user ID ("sub" claim)
+
+        // ---------------------------------------------------------------
+        // STEP 4: Find or create the user in your database.
+        // ---------------------------------------------------------------
+        Optional<User> userOptional = userRepository.findByEmail(email);
         User user;
 
         if (userOptional.isPresent()) {
+            // User already exists — update their profile info from Google
             user = userOptional.get();
-            // If the user already exists, update their name and photo just in case.
-            user.setName(request.getName());
-            user.setImageUrl(request.getPhotoUrl());
+            user.setName(name);
+            user.setImageUrl(pictureUrl);
             userRepository.save(user);
         } else {
-            // 2. If the user doesn't exist, this is their first time logging in!
-            // We create a new User object with Google as the provider.
-            user = User.builder()
-                    .email(request.getEmail())
-                    .name(request.getName())
-                    .imageUrl(request.getPhotoUrl())
-                    .provider(AuthProvider.GOOGLE)
-                    .providerId(request.getId())
-                    .build();
+            // First time login — create a new user
+            user = User.builder().email(email).name(name).imageUrl(pictureUrl).provider(AuthProvider.GOOGLE)
+                    .providerId(googleId).build();
             createUser(user);
         }
 
-        // 3. Generate our application's JWT for this user.
+        // ---------------------------------------------------------------
+        // STEP 5: Issue your own app's JWT and return it to Flutter.
+        // ---------------------------------------------------------------
         String token = jwtUtils.generateTokenFromUsername(user.getEmail());
         return new AuthResponse(token);
     }
@@ -112,11 +184,9 @@ public class AuthService {
 
         // 2. Build a new User object from the registration request.
         // We MUST hash the password using PasswordEncoder before saving it.
-        User user = User.builder()
-                .name(registerRequest.getName())
-                .email(registerRequest.getEmail())
-                .password(passwordEncoder.encode(registerRequest.getPassword()))
-                .provider(AuthProvider.LOCAL) // Local sign-up
+        User user = User.builder().name(registerRequest.getName()).email(registerRequest.getEmail())
+                .password(passwordEncoder.encode(registerRequest.getPassword())).provider(AuthProvider.LOCAL) // Local
+                                                                                                              // sign-up
                 .build();
 
         // 3. Save the new user to the MySQL database.

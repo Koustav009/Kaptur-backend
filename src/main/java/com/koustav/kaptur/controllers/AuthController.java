@@ -14,8 +14,9 @@ import com.koustav.kaptur.services.AuthService;
 
 /**
  * @RestController means this class handles HTTP requests (like POST, GET).
- * Controllers are the "entry point" to our application.
- * @RequestMapping("/auth") means all URLs in this class start with /auth.
+ *                 Controllers are the "entry point" to our
+ *                 application. @RequestMapping("/auth") means all URLs in this
+ *                 class start with /auth.
  */
 @RestController
 @RequestMapping("/auth")
@@ -26,8 +27,10 @@ public class AuthController {
 
     /**
      * @PostMapping("/login") handles POST requests to /auth/login.
+     * 
      * @RequestBody converts the incoming JSON to a LoginRequest object.
-     * ResponseEntity allows us to return status codes (200 OK, 400 Bad Request, etc.).
+     *              ResponseEntity allows us to return status codes (200 OK, 400 Bad
+     *              Request, etc.).
      */
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {
@@ -37,13 +40,13 @@ public class AuthController {
     }
 
     /**
-     * @PostMapping("/google") handles Native Google Login from Flutter.
-     * We receive the user data from Flutter, verify it, and issue our backend's JWT.
+     * @PostMapping("/google") handles Native Google Login from Flutter. We receive
+     * the user data from Flutter, verify it, and issue our backend's JWT.
      */
     @PostMapping("/google")
     public ResponseEntity<?> googleLogin(@RequestBody GoogleLoginRequest request) {
         // Exchange Google data for our backend's JWT token.
-        AuthResponse response = authService.googleLogin(request);
+        AuthResponse response = authService.googleLogin2(request);
         return ResponseEntity.ok(response);
     }
 
