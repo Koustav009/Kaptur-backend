@@ -29,7 +29,8 @@ public class SecurityConfig {
 
     private final CustomUserDetailsService userDetailsService;
     private final AuthTokenFilter authTokenFilter;
-    private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
+    // private final OAuth2AuthenticationSuccessHandler
+    // oAuth2AuthenticationSuccessHandler;
 
     /**
      * Tells Spring Security how to find users (using UserDetailsService) and how to
@@ -86,9 +87,10 @@ public class SecurityConfig {
                             // We return 401 Unauthorized instead of a 302 Redirect.
                             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                             response.getWriter().write("Error: Unauthorized - Please Login First");
-                        }))
-                // 5. Configure Google OAuth login.
-                .oauth2Login(oauth2 -> oauth2.successHandler(oAuth2AuthenticationSuccessHandler));
+                        }));
+        // 5. Configure Google OAuth login.
+        // .oauth2Login(oauth2 ->
+        // oauth2.successHandler(oAuth2AuthenticationSuccessHandler));
 
         // 6. Connect our user database check.
         http.authenticationProvider(authenticationProvider());

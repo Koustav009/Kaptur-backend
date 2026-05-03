@@ -27,11 +27,6 @@ import com.koustav.kaptur.security.JwtUtils;
 import java.util.Collections;
 import java.util.Optional;
 
-/**
- * @Service is where the "Business Logic" lives. It's where we do calculations,
- *          check database, and perform logic. We inject repositories and other
- *          tools (like PasswordEncoder) here.
- */
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -46,7 +41,7 @@ public class AuthService {
     @Value("${google.client-id}")
     private String googleClientId;
 
-    private void createUser(User user) {
+    private User createUser(User user) {
         // save user first to get the id
         userRepository.save(user);
 
@@ -54,7 +49,7 @@ public class AuthService {
 
         user.setKptId(kptId);
 
-        userRepository.save(user);
+        return userRepository.save(user);
     }
 
     /**
@@ -160,15 +155,15 @@ public class AuthService {
             userRepository.save(user);
         } else {
             // First time login — create a new user
-            user = User.builder().email(email).name(name).imageUrl(pictureUrl).provider(AuthProvider.GOOGLE)
+            User tmp_user = User.builder().email(email).name(name).imageUrl(pictureUrl).provider(AuthProvider.GOOGLE)
                     .providerId(googleId).build();
-            createUser(user);
+            user = createUser(tmp_user);
         }
 
         // ---------------------------------------------------------------
         // STEP 5: Issue your own app's JWT and return it to Flutter.
         // ---------------------------------------------------------------
-        String token = jwtUtils.generateTokenFromUsername(user.getEmail());
+        String token = jwtUtils.generateTokenFromKptId(user.getKptId());
         return new AuthResponse(token);
     }
 

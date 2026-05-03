@@ -2,6 +2,8 @@ package com.koustav.kaptur.security;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+
+import org.checkerframework.checker.units.qual.kmPERh;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -33,13 +35,8 @@ public class JwtUtils {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
     }
 
-    /**
-     * Generates a token for a user after they log in.
-     */
-    public String generateJwtToken(Authentication authentication) {
-        CustomUserDetails userPrincipal = (CustomUserDetails) authentication.getPrincipal();
-
-        return Jwts.builder().subject(userPrincipal.getKptId()) // Sets the email in the token
+    private String buildJwt(String KptId) {
+        return Jwts.builder().subject(KptId) // Sets the KPT ID in the token
                 .issuedAt(new Date()) // Token creation time
                 .expiration(new Date((new Date()).getTime() + jwtExpirationMs)) // Expiry time
                 .signWith(getSigningKey()) // Signs the token with our secret
@@ -47,11 +44,18 @@ public class JwtUtils {
     }
 
     /**
+     * Generates a token for a user after they log in.
+     */
+    public String generateJwtToken(Authentication authentication) {
+        CustomUserDetails userPrincipal = (CustomUserDetails) authentication.getPrincipal();
+        return buildJwt(userPrincipal.getKptId());
+    }
+
+    /**
      * Used for generating tokens for Google OAuth users.
      */
-    public String generateTokenFromUsername(String username) {
-        return Jwts.builder().subject(username).issuedAt(new Date())
-                .expiration(new Date((new Date()).getTime() + jwtExpirationMs)).signWith(getSigningKey()).compact();
+    public String generateTokenFromKptId(String KptId) {
+        return buildJwt(KptId);
     }
 
     /**
