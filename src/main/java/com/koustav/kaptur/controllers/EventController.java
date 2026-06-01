@@ -90,8 +90,8 @@ public class EventController {
     private User getCurrentUser() {
         org.springframework.security.core.Authentication authentication = org.springframework.security.core.context.SecurityContextHolder
                 .getContext().getAuthentication();
-        String email = authentication.getName();
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
+        String kptId = authentication.getName();
+        return userRepository.findByKptId(kptId)
+                .orElseThrow(() -> new RuntimeException("User not found with ID: " + kptId));
     }
 }
