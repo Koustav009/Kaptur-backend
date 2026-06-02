@@ -1,6 +1,7 @@
 package com.koustav.kaptur.repository;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -13,10 +14,16 @@ import com.koustav.kaptur.model.EventPhotos;
  */
 @Repository
 public interface EventPhotosRepository extends JpaRepository<EventPhotos, Long> {
-    
+
     // Find all photos for a specific event
     List<EventPhotos> findByEventId(Long eventId);
-    
+
     // Find all photos uploaded by a specific user
     List<EventPhotos> findByUploadedById(Long userId);
+
+    // Look up a photo by its unique UUID-based photoId (used by TUSd hooks)
+    Optional<EventPhotos> findByPhotoId(String photoId);
+
+    // Find all non-soft-deleted photos for a specific event
+    List<EventPhotos> findByEventIdAndIsDeletedFalse(Long eventId);
 }
