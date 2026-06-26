@@ -1,6 +1,6 @@
-# 🦉 Fotoowl Clone Backend
+# 🦉 Kaptur Backend
 
-Welcome to the **Fotoowl Clone Backend**! This project is a robust, production-ready backend for a photo management application. It's built with modern Java technologies and follows industry-standard architectural patterns.
+Welcome to the **Kaptur Backend**! This project is a robust, production-ready backend for a photo management application. It's built with modern Java technologies and follows industry-standard architectural patterns.
 
 This guide is designed for **newbie and junior developers** to help you understand what's under the hood and how to get everything running on your local machine.
 
@@ -33,9 +33,9 @@ Before you start, make sure you have the following installed:
 
 ### 1. Database Setup
 1.  Open your MySQL terminal or a GUI like MySQL Workbench.
-2.  Create a new database named `fotoowl`:
+2.  Create a new database named `kaptur`:
     ```sql
-    CREATE DATABASE fotoowl;
+    CREATE DATABASE kaptur;
     ```
 
 ### 2. Configuration

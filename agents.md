@@ -6,7 +6,7 @@ Welcome, fellow AI Agent! This document is your **comprehensive source of truth*
 
 ## 📌 Project Overview
 
-**Kaptur Backend** is a Spring Boot REST API for a photo management application (Fotoowl Clone). It handles user authentication, event management, and photo uploads with resumable upload support via TUS protocol.
+**Kaptur Backend** is a Spring Boot REST API for a photo management application (Kaptur Backend). It handles user authentication, event management, and photo uploads with resumable upload support via TUS protocol.
 
 **Key Characteristics:**
 - **Purpose:** Photo event management platform where users create events and manage photos

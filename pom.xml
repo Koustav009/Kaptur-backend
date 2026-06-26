@@ -8,9 +8,9 @@
 		<version>4.0.5</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
-	<groupId>com.fotoowl</groupId>
-	<artifactId>clone</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<groupId>com.koustav</groupId>
+	<artifactId>Kaptur</artifactId>
+	<version>0.0.1</version>
 	<name/>
 	<description/>
 	<url/>
