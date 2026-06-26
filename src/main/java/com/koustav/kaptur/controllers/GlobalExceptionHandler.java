@@ -4,11 +4,13 @@ package com.koustav.kaptur.controllers;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * @RestControllerAdvice is like a "safety net" for our application.
@@ -26,6 +28,19 @@ public class GlobalExceptionHandler {
         Map<String, String> error = new HashMap<>();
         error.put("error", "Invalid email or password");
         return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
+    }
+
+    /**
+     * Handles @Valid annotation failures (e.g. missing required fields).
+     */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<?> handleValidationExceptions(MethodArgumentNotValidException ex) {
+        String errors = ex.getBindingResult().getFieldErrors().stream()
+                .map(e -> e.getField() + ": " + e.getDefaultMessage())
+                .collect(Collectors.joining(", "));
+        Map<String, String> error = new HashMap<>();
+        error.put("error", errors);
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
     }
 
     /**
