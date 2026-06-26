@@ -1,9 +1,15 @@
 package com.koustav.kaptur.model;
 
-
 import com.koustav.kaptur.model.enums.AuthProvider;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -47,6 +53,7 @@ public class User {
     private AuthProvider provider;
 
     // The unique ID provided by Google (called 'sub' in OAuth).
+    @Column(unique = true)
     private String providerId;
 
     // URL to the user's profile picture from Google.

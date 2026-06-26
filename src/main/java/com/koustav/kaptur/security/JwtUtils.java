@@ -14,11 +14,13 @@ import com.koustav.kaptur.model.CustomUserDetails;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * @Component makes this class available as a "Bean" to other classes. This
  *            class handles all JWT (JSON Web Token) creation and validation.
  */
+@Slf4j
 @Component
 public class JwtUtils {
 
@@ -36,6 +38,7 @@ public class JwtUtils {
     }
 
     private String buildJwt(String KptId) {
+        log.debug("Building JWT for kptId: {}", KptId);
         return Jwts.builder().subject(KptId) // Sets the KPT ID in the token
                 .issuedAt(new Date()) // Token creation time
                 .expiration(new Date((new Date()).getTime() + jwtExpirationMs)) // Expiry time
@@ -48,6 +51,7 @@ public class JwtUtils {
      */
     public String generateJwtToken(Authentication authentication) {
         CustomUserDetails userPrincipal = (CustomUserDetails) authentication.getPrincipal();
+        log.debug("Generating JWT for authenticated user: {}", userPrincipal.getKptId());
         return buildJwt(userPrincipal.getKptId());
     }
 
@@ -55,6 +59,7 @@ public class JwtUtils {
      * Used for generating tokens for Google OAuth users.
      */
     public String generateTokenFromKptId(String KptId) {
+        log.debug("Generating JWT from kptId: {}", KptId);
         return buildJwt(KptId);
     }
 
@@ -62,7 +67,9 @@ public class JwtUtils {
      * Decodes the token to get the user's email.
      */
     public String getUserNameFromJwtToken(String token) {
-        return Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(token).getPayload().getSubject();
+        String kptId = Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(token).getPayload().getSubject();
+        log.debug("Extracted kptId from JWT: {}", kptId);
+        return kptId;
     }
 
     /**
@@ -71,9 +78,12 @@ public class JwtUtils {
     public boolean validateJwtToken(String authToken) {
         try {
             Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(authToken);
+            log.debug("JWT validation successful");
             return true;
-        } catch (JwtException | IllegalArgumentException e) {
-            // If token is invalid, we return false.
+        } catch (JwtException e) {
+            log.warn("Invalid JWT: {}", e.getMessage());
+        } catch (IllegalArgumentException e) {
+            log.warn("JWT claims string is empty: {}", e.getMessage());
         }
         return false;
     }

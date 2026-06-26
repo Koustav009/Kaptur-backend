@@ -62,8 +62,16 @@ public class FileController {
             @PathVariable("eventId") String evntid,
             @Valid @RequestBody PhotoUploadRequest request) {
         User currentUser = getCurrentUser();
-        PhotoUploadResponse response = fileServices.initUpload(evntid, request, currentUser);
-        return new ResponseEntity<>(response, HttpStatus.CREATED);
+        log.info("Initiating upload for event: {}, filename: {}, user: {}",
+                evntid, request.getFilename(), currentUser.getKptId());
+        try {
+            PhotoUploadResponse response = fileServices.initUpload(evntid, request, currentUser);
+            log.info("Upload initiated successfully, photoId: {}", response.getPhotoId());
+            return new ResponseEntity<>(response, HttpStatus.CREATED);
+        } catch (Exception e) {
+            log.error("Failed to initiate upload for event: {}, filename: {}", evntid, request.getFilename(), e);
+            throw e;
+        }
     }
 
     /**
@@ -82,14 +90,19 @@ public class FileController {
      */
     @PostMapping("/tusd/hooks")
     public ResponseEntity<TusdHookResponse> handleTusdHook(@RequestBody TusdHookRequest hookRequest) {
-        log.info("TUSd hook received: type={}, uploadId={}",
-                hookRequest.getType(),
-                hookRequest.getEvent() != null && hookRequest.getEvent().getUpload() != null
-                        ? hookRequest.getEvent().getUpload().getID()
-                        : "N/A");
+        String uploadId = hookRequest.getEvent() != null && hookRequest.getEvent().getUpload() != null
+                ? hookRequest.getEvent().getUpload().getID()
+                : "N/A";
+        log.info("TUSd hook received: type={}, uploadId={}", hookRequest.getType(), uploadId);
 
-        TusdHookResponse response = fileServices.handleTusdHook(hookRequest);
-        return ResponseEntity.ok(response);
+        try {
+            TusdHookResponse response = fileServices.handleTusdHook(hookRequest);
+            log.info("TUSd hook processed successfully for uploadId: {}", uploadId);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Failed to process TUSd hook: type={}, uploadId={}", hookRequest.getType(), uploadId, e);
+            throw e;
+        }
     }
 
     /**
@@ -108,7 +121,9 @@ public class FileController {
     public ResponseEntity<List<PhotoResponse>> getEventPhotos(
             @PathVariable("eventId") String evntid) {
         User currentUser = getCurrentUser();
+        log.debug("Fetching photos for event: {}, user: {}", evntid, currentUser.getKptId());
         List<PhotoResponse> photos = fileServices.getEventPhotos(evntid, currentUser);
+        log.debug("Found {} photos for event: {}", photos.size(), evntid);
         return ResponseEntity.ok(photos);
     }
 
@@ -129,9 +144,15 @@ public class FileController {
             @PathVariable("eventId") String evntid,
             @PathVariable("photoId") String photoId) {
         User currentUser = getCurrentUser();
-        fileServices.deletePhoto(evntid, photoId, currentUser);
-
-        return ResponseEntity.ok(Map.of("message", "Photo deleted successfully"));
+        log.info("Deleting photo: {} from event: {} by user: {}", photoId, evntid, currentUser.getKptId());
+        try {
+            fileServices.deletePhoto(evntid, photoId, currentUser);
+            log.info("Photo deleted successfully: {}", photoId);
+            return ResponseEntity.ok(Map.of("message", "Photo deleted successfully"));
+        } catch (Exception e) {
+            log.error("Failed to delete photo: {} from event: {}", photoId, evntid, e);
+            throw e;
+        }
     }
 
     /**
@@ -143,6 +164,7 @@ public class FileController {
                 org.springframework.security.core.context.SecurityContextHolder
                         .getContext().getAuthentication();
         String kptId = authentication.getName();
+        log.debug("Getting current user with kptId: {}", kptId);
         return userRepository.findByKptId(kptId)
                 .orElseThrow(() -> new RuntimeException("User not found with ID: " + kptId));
     }

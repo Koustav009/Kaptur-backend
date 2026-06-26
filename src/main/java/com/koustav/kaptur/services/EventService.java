@@ -19,12 +19,14 @@ import com.koustav.kaptur.repository.EventMembersRepository;
 import com.koustav.kaptur.repository.EventRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Service class for managing Events. This is where the business logic for
  * creating, updating, and deleting events resides. We use @Transactional to
  * ensure that multiple database operations either all succeed or all fail.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class EventService {
@@ -41,6 +43,7 @@ public class EventService {
      */
     @Transactional
     public EventResponse createEvent(EventRequest request, User currentUser) {
+        log.info("Creating event '{}' by user: {}", request.getEventTitle(), currentUser.getKptId());
         // 1. Create the Event entity from the request
         Event event = Event.builder().eventTitle(request.getEventTitle()).description(request.getDescription())
                 .eventDate(request.getEventDate()).eventLocation(request.getEventLocation()).createdBy(currentUser)
@@ -48,6 +51,7 @@ public class EventService {
 
         // 2. Save the event to get an ID
         event = eventRepository.save(event);
+        log.debug("Event saved with internal ID: {}", event.getId());
 
         // 3. Generate a unique public ID (evntid)
         // We use a combination of a prefix and the database ID, or a random string.
@@ -62,6 +66,7 @@ public class EventService {
                 .role(Role.OWNER).status(Status.ACCEPTED).build();
 
         eventMembersRepository.save(membership);
+        log.info("Event created successfully with evntid: {}", evntid);
 
         return mapToResponse(event);
     }
@@ -70,10 +75,12 @@ public class EventService {
      * Retrieves an event by its ID.
      */
     public EventResponse getEventById(Long id) {
+        log.debug("Fetching event by ID: {}", id);
         Event event = eventRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Event not found with id: " + id));
 
         if (event.getIsDeleted()) {
+            log.warn("Attempted to access deleted event: {}", id);
             throw new RuntimeException("Event has been deleted");
         }
 
@@ -84,8 +91,11 @@ public class EventService {
      * Retrieves all events created by the current user.
      */
     public List<EventResponse> getUserCreatedEvents(Long userId) {
-        return eventRepository.findByCreatedById(userId).stream().filter(event -> !event.getIsDeleted())
+        log.debug("Fetching events for user ID: {}", userId);
+        List<EventResponse> events = eventRepository.findByCreatedById(userId).stream().filter(event -> !event.getIsDeleted())
                 .map(this::mapToResponse).collect(Collectors.toList());
+        log.debug("Found {} events for user ID: {}", events.size(), userId);
+        return events;
     }
 
     /**
@@ -94,10 +104,12 @@ public class EventService {
      */
     @Transactional
     public EventResponse updateEvent(Long id, EventRequest request, User currentUser) {
+        log.info("Updating event ID: {} by user: {}", id, currentUser.getKptId());
         Event event = eventRepository.findById(id).orElseThrow(() -> new RuntimeException("Event not found"));
 
         // Security check: Is this user the owner?
         if (!event.getCreatedBy().getId().equals(currentUser.getId())) {
+            log.warn("Unauthorized update attempt on event: {} by user: {}", id, currentUser.getKptId());
             throw new RuntimeException("You are not authorized to update this event");
         }
 
@@ -106,7 +118,9 @@ public class EventService {
         event.setEventDate(request.getEventDate());
         event.setEventLocation(request.getEventLocation());
 
-        return mapToResponse(eventRepository.save(event));
+        Event updatedEvent = eventRepository.save(event);
+        log.info("Event updated successfully: {}", updatedEvent.getEvntid());
+        return mapToResponse(updatedEvent);
     }
 
     /**
@@ -114,14 +128,17 @@ public class EventService {
      */
     @Transactional
     public void deleteEvent(Long id, User currentUser) {
+        log.info("Deleting event ID: {} by user: {}", id, currentUser.getKptId());
         Event event = eventRepository.findById(id).orElseThrow(() -> new RuntimeException("Event not found"));
 
         if (!event.getCreatedBy().getId().equals(currentUser.getId())) {
+            log.warn("Unauthorized delete attempt on event: {} by user: {}", id, currentUser.getKptId());
             throw new RuntimeException("You are not authorized to delete this event");
         }
 
         event.setIsDeleted(true);
         eventRepository.save(event);
+        log.info("Event deleted successfully: {}", id);
     }
 
     /**

@@ -5,6 +5,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.User;
@@ -21,6 +22,7 @@ import java.util.ArrayList;
  * This Filter runs EVERY time we get an API request. It's the "Security Guard"
  * checking if the user has a valid ID card (JWT).
  */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class AuthTokenFilter extends OncePerRequestFilter {
@@ -42,6 +44,7 @@ public class AuthTokenFilter extends OncePerRequestFilter {
             if (jwt != null && jwtUtils.validateJwtToken(jwt)) {
                 // 3. Get the user's email from the token.
                 String username = jwtUtils.getUserNameFromJwtToken(jwt);
+                log.debug("JWT validated for user: {}", username);
 
                 // 4. Load the user from the database.
                 User userDetails = new org.springframework.security.core.userdetails.User(username, "",
@@ -54,9 +57,11 @@ public class AuthTokenFilter extends OncePerRequestFilter {
 
                 // 6. Tell Spring Security: "This user is authenticated!".
                 SecurityContextHolder.getContext().setAuthentication(authentication);
+            } else if (jwt != null) {
+                log.warn("Invalid JWT token received");
             }
         } catch (Exception e) {
-            // Log error if something goes wrong.
+            log.error("Cannot set user authentication: {}", e.getMessage());
         }
 
         // 7. Let the request continue to the Controller.

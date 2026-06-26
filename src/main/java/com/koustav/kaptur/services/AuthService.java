@@ -1,6 +1,7 @@
 package com.koustav.kaptur.services;
 
-import lombok.RequiredArgsConstructor;
+import java.util.Collections;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -10,8 +11,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken.Payload;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken.Payload;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
@@ -24,9 +25,10 @@ import com.koustav.kaptur.model.enums.AuthProvider;
 import com.koustav.kaptur.repository.UserRepository;
 import com.koustav.kaptur.security.JwtUtils;
 
-import java.util.Collections;
-import java.util.Optional;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -42,6 +44,7 @@ public class AuthService {
     private String googleClientId;
 
     private User createUser(User user) {
+        log.debug("Creating new user with email: {}", user.getEmail());
         // save user first to get the id
         userRepository.save(user);
 
@@ -49,7 +52,9 @@ public class AuthService {
 
         user.setKptId(kptId);
 
-        return userRepository.save(user);
+        User savedUser = userRepository.save(user);
+        log.info("User created successfully with kptId: {}", kptId);
+        return savedUser;
     }
 
     /**
@@ -57,18 +62,24 @@ public class AuthService {
      * password.
      */
     public AuthResponse authenticateUser(LoginRequest loginRequest) {
-        // 1. We ask the AuthenticationManager to check the email and password.
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword()));
+        log.info("Authenticating user with email: {}", loginRequest.getEmail());
+        try {
+            // 1. We ask the AuthenticationManager to check the email and password.
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword()));
 
-        // 2. If valid, we store the authentication info in the Security Context.
-        SecurityContextHolder.getContext().setAuthentication(authentication);
+            // 2. If valid, we store the authentication info in the Security Context.
+            SecurityContextHolder.getContext().setAuthentication(authentication);
 
-        // 3. We generate a JWT token so the user stays logged in for their next
-        // requests.
-        String jwt = jwtUtils.generateJwtToken(authentication);
-
-        return new AuthResponse(jwt);
+            // 3. We generate a JWT token so the user stays logged in for their next
+            // requests.
+            String jwt = jwtUtils.generateJwtToken(authentication);
+            log.info("User authenticated successfully: {}", loginRequest.getEmail());
+            return AuthResponse.builder().accessToken(jwt).build();
+        } catch (Exception e) {
+            log.error("Authentication failed for email: {}", loginRequest.getEmail(), e);
+            throw e;
+        }
     }
 
     /**
@@ -76,32 +87,8 @@ public class AuthService {
      * user already exists in our DB, saves them if not, and returns a JWT for them
      * to use in our app.
      */
-    // public AuthResponse googleLogin(GoogleLoginRequest request) {
-    // // 1. Search for a user with this email in our database.
-    // Optional<User> userOptional = userRepository.findByEmail(request.getEmail());
-    // User user;
-
-    // if (userOptional.isPresent()) {
-    // user = userOptional.get();
-    // // If the user already exists, update their name and photo just in case.
-    // user.setName(request.getName());
-    // user.setImageUrl(request.getPhotoUrl());
-    // userRepository.save(user);
-    // } else {
-    // // 2. If the user doesn't exist, this is their first time logging in!
-    // // We create a new User object with Google as the provider.
-    // user =
-    // User.builder().email(request.getEmail()).name(request.getName()).imageUrl(request.getPhotoUrl())
-    // .provider(AuthProvider.GOOGLE).providerId(request.getId()).build();
-    // createUser(user);
-    // }
-
-    // // 3. Generate our application's JWT for this user.
-    // String token = jwtUtils.generateTokenFromUsername(user.getEmail());
-    // return new AuthResponse(token);
-    // }
-
     public AuthResponse googleLogin2(GoogleLoginRequest request) {
+        log.info("Google login attempt with token");
 
         // ---------------------------------------------------------------
         // STEP 1: Build a GoogleIdTokenVerifier.
@@ -123,10 +110,12 @@ public class AuthService {
         try {
             idToken = verifier.verify(request.getId());
         } catch (Exception e) {
+            log.error("Google token verification failed", e);
             throw new RuntimeException("Google token verification failed: " + e.getMessage());
         }
 
         if (idToken == null) {
+            log.warn("Invalid or expired Google ID token");
             throw new RuntimeException("Invalid or expired Google ID token");
         }
 
@@ -141,20 +130,30 @@ public class AuthService {
         String pictureUrl = (String) payload.get("picture");
         String googleId = payload.getSubject(); // Google's unique user ID ("sub" claim)
 
+        log.debug("Google token verified for email: {}", email);
+
         // ---------------------------------------------------------------
         // STEP 4: Find or create the user in your database.
         // ---------------------------------------------------------------
-        Optional<User> userOptional = userRepository.findByEmail(email);
+        Optional<User> userOptional = userRepository.findByProviderId(googleId);
+        if (userOptional.isEmpty()) {
+            userOptional = userRepository.findByEmail(email);
+            log.debug("Existing user found with email: {}", email);
+        } else {
+            log.debug("Existing user found with providerId: {}", email);
+        }
         User user;
 
         if (userOptional.isPresent()) {
             // User already exists — update their profile info from Google
+
             user = userOptional.get();
             user.setName(name);
             user.setImageUrl(pictureUrl);
             userRepository.save(user);
         } else {
             // First time login — create a new user
+            log.info("Creating new Google user with email: {}", email);
             User tmp_user = User.builder().email(email).name(name).imageUrl(pictureUrl).provider(AuthProvider.GOOGLE)
                     .providerId(googleId).build();
             user = createUser(tmp_user);
@@ -164,7 +163,8 @@ public class AuthService {
         // STEP 5: Issue your own app's JWT and return it to Flutter.
         // ---------------------------------------------------------------
         String token = jwtUtils.generateTokenFromKptId(user.getKptId());
-        return new AuthResponse(token);
+        log.info("Google login successful for user: {}", email);
+        return AuthResponse.builder().accessToken(token).build();
     }
 
     /**
@@ -172,8 +172,10 @@ public class AuthService {
      * password.
      */
     public String registerUser(RegisterRequest registerRequest) {
+        log.info("Registration attempt for email: {}", registerRequest.getEmail());
         // 1. Check if the email is already registered.
         if (userRepository.existsByEmail(registerRequest.getEmail())) {
+            log.warn("Email already in use: {}", registerRequest.getEmail());
             throw new RuntimeException("Error: Email is already in use!");
         }
 
@@ -186,6 +188,7 @@ public class AuthService {
 
         // 3. Save the new user to the MySQL database.
         createUser(user);
+        log.info("User registered successfully: {}", registerRequest.getEmail());
 
         return "User registered successfully!";
     }

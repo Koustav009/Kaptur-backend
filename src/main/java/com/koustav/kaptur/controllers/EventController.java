@@ -21,7 +21,9 @@ import com.koustav.kaptur.model.User;
 import com.koustav.kaptur.services.EventService;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @RestController
 @RequestMapping("/events")
 @RequiredArgsConstructor
@@ -36,7 +38,9 @@ public class EventController {
     @PostMapping
     public ResponseEntity<EventResponse> createEvent(@jakarta.validation.Valid @RequestBody EventRequest request) {
         User currentUser = getCurrentUser();
+        log.info("Creating event '{}' by user: {}", request.getEventTitle(), currentUser.getKptId());
         EventResponse response = eventService.createEvent(request, currentUser);
+        log.info("Event created successfully with ID: {}", response.getEvntid());
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
@@ -45,6 +49,7 @@ public class EventController {
      */
     @GetMapping("/{id}")
     public ResponseEntity<EventResponse> getEventById(@PathVariable Long id) {
+        log.debug("Fetching event by ID: {}", id);
         EventResponse response = eventService.getEventById(id);
         return ResponseEntity.ok(response);
     }
@@ -55,7 +60,9 @@ public class EventController {
     @GetMapping
     public ResponseEntity<List<EventResponse>> getUserEvents() {
         User currentUser = getCurrentUser();
+        log.debug("Fetching events for user: {}", currentUser.getKptId());
         List<EventResponse> response = eventService.getUserCreatedEvents(currentUser.getId());
+        log.debug("Found {} events for user: {}", response.size(), currentUser.getKptId());
         return ResponseEntity.ok(response);
     }
 
@@ -66,7 +73,9 @@ public class EventController {
     public ResponseEntity<EventResponse> updateEvent(@PathVariable Long id,
             @jakarta.validation.Valid @RequestBody EventRequest request) {
         User currentUser = getCurrentUser();
+        log.info("Updating event ID: {} by user: {}", id, currentUser.getKptId());
         EventResponse response = eventService.updateEvent(id, request, currentUser);
+        log.info("Event updated successfully: {}", response.getEvntid());
         return ResponseEntity.ok(response);
     }
 
@@ -76,10 +85,12 @@ public class EventController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Map<String, String>> deleteEvent(@PathVariable Long id) {
         User currentUser = getCurrentUser();
+        log.info("Deleting event ID: {} by user: {}", id, currentUser.getKptId());
         eventService.deleteEvent(id, currentUser);
 
         Map<String, String> response = new HashMap<>();
         response.put("message", "Event deleted successfully");
+        log.info("Event deleted successfully: {}", id);
         return ResponseEntity.ok(response);
     }
 
@@ -91,6 +102,7 @@ public class EventController {
         org.springframework.security.core.Authentication authentication = org.springframework.security.core.context.SecurityContextHolder
                 .getContext().getAuthentication();
         String kptId = authentication.getName();
+        log.debug("Getting current user with kptId: {}", kptId);
         return userRepository.findByKptId(kptId)
                 .orElseThrow(() -> new RuntimeException("User not found with ID: " + kptId));
     }

@@ -1,10 +1,12 @@
 package com.koustav.kaptur.controllers;
 
-import lombok.RequiredArgsConstructor;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import com.koustav.kaptur.dto.AuthResponse;
 import com.koustav.kaptur.dto.GoogleLoginRequest;
@@ -12,12 +14,16 @@ import com.koustav.kaptur.dto.LoginRequest;
 import com.koustav.kaptur.dto.RegisterRequest;
 import com.koustav.kaptur.services.AuthService;
 
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * @RestController means this class handles HTTP requests (like POST, GET).
  *                 Controllers are the "entry point" to our
  *                 application. @RequestMapping("/auth") means all URLs in this
  *                 class start with /auth.
  */
+@Slf4j
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
@@ -34,9 +40,16 @@ public class AuthController {
      */
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {
-        // We delegate the heavy work to the Service layer.
-        AuthResponse response = authService.authenticateUser(loginRequest);
-        return ResponseEntity.ok(response); // Returns 200 OK with the JWT token.
+        log.info("Login attempt for email: {}", loginRequest.getEmail());
+        try {
+            // We delegate the heavy work to the Service layer.
+            AuthResponse response = authService.authenticateUser(loginRequest);
+            log.info("Login successful for email: {}", loginRequest.getEmail());
+            return ResponseEntity.ok(response); // Returns 200 OK with the JWT token.
+        } catch (Exception e) {
+            log.error("Login failed for email: {}", loginRequest.getEmail(), e);
+            throw e;
+        }
     }
 
     /**
@@ -55,9 +68,16 @@ public class AuthController {
      */
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@RequestBody RegisterRequest registerRequest) {
-        // We call the Service to save the user in the database.
-        String result = authService.registerUser(registerRequest);
-        return new ResponseEntity<>(result, HttpStatus.CREATED);
+        log.info("Registration attempt for email: {}", registerRequest.getEmail());
+        try {
+            // We call the Service to save the user in the database.
+            String result = authService.registerUser(registerRequest);
+            log.info("Registration successful for email: {}", registerRequest.getEmail());
+            return new ResponseEntity<>(result, HttpStatus.CREATED);
+        } catch (Exception e) {
+            log.error("Registration failed for email: {}", registerRequest.getEmail(), e);
+            throw e;
+        }
     }
 
     /**
@@ -65,6 +85,7 @@ public class AuthController {
      */
     @GetMapping("/test")
     public String test() {
+        log.debug("Test endpoint called");
         return "Auth endpoint is working";
     }
 }

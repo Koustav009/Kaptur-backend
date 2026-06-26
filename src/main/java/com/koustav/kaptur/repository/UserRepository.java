@@ -1,10 +1,10 @@
 package com.koustav.kaptur.repository;
 
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.koustav.kaptur.model.User;
-
-import java.util.Optional;
 
 /**
  * Repositories are interfaces used to perform CRUD (Create, Read, Update,
@@ -17,6 +17,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmail(String email);
 
     Optional<User> findByKptId(String kptId);
+
+    Optional<User> findByProviderId(String providerId);
 
     // Checks if a user already exists with this email.
     Boolean existsByEmail(String email);

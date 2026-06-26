@@ -115,6 +115,12 @@
 			<version>2.7.2</version>
 			<scope>compile</scope>
 		</dependency>
+		<dependency>
+			<groupId>com.google.http-client</groupId>
+			<artifactId>google-http-client-gson</artifactId>
+			<version>1.44.1</version>
+			<scope>compile</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
