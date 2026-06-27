@@ -12,8 +12,6 @@ import com.koustav.kaptur.model.CustomUserDetails;
 import com.koustav.kaptur.model.User;
 import com.koustav.kaptur.repository.UserRepository;
 
-import java.util.ArrayList;
-
 /**
  * Spring Security needs an interface called UserDetailsService to load user
  * info from the database during authentication. This is our implementation.

@@ -2,6 +2,7 @@ package com.koustav.kaptur.services;
 
 import java.util.Collections;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -11,6 +12,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import com.github.f4b6a3.uuid.UuidCreator;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken.Payload;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
@@ -20,6 +22,7 @@ import com.koustav.kaptur.dto.AuthResponse;
 import com.koustav.kaptur.dto.GoogleLoginRequest;
 import com.koustav.kaptur.dto.LoginRequest;
 import com.koustav.kaptur.dto.RegisterRequest;
+import com.koustav.kaptur.model.CustomUserDetails;
 import com.koustav.kaptur.model.User;
 import com.koustav.kaptur.model.enums.AuthProvider;
 import com.koustav.kaptur.repository.UserRepository;
@@ -46,9 +49,13 @@ public class AuthService {
     private User createUser(User user) {
         log.debug("Creating new user with email: {}", user.getEmail());
         // save user first to get the id
-        userRepository.save(user);
+        // userRepository.save(user);
 
-        String kptId = String.format("KPT%07d", user.getId());
+        // String kptId = String.format("KPT%07d", user.getId());
+        // String kptId = UUID.randomUUID().toString();
+        UUID uuid = UuidCreator.getTimeOrderedEpoch();
+
+        String kptId = uuid.toString();
 
         user.setKptId(kptId);
 
@@ -65,17 +72,21 @@ public class AuthService {
         log.info("Authenticating user with email: {}", loginRequest.getEmail());
         try {
             // 1. We ask the AuthenticationManager to check the email and password.
-            Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword()));
+            Authentication authentication = authenticationManager
+                    .authenticate(new UsernamePasswordAuthenticationToken(loginRequest.getEmail(),
+                            loginRequest.getPassword()));
 
             // 2. If valid, we store the authentication info in the Security Context.
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
             // 3. We generate a JWT token so the user stays logged in for their next
             // requests.
-            String jwt = jwtUtils.generateJwtToken(authentication);
+            String token = jwtUtils.generateJwtToken(authentication);
+            CustomUserDetails customUserDetails = (CustomUserDetails) authentication.getPrincipal();
+            User user = customUserDetails.getUser();
+
             log.info("User authenticated successfully: {}", loginRequest.getEmail());
-            return AuthResponse.builder().accessToken(jwt).build();
+            return AuthResponse.builder().accessToken(token).user(user).build();
         } catch (Exception e) {
             log.error("Authentication failed for email: {}", loginRequest.getEmail(), e);
             throw e;
@@ -95,8 +106,9 @@ public class AuthService {
         // This verifier hits Google's public JWKS endpoint to validate
         // the token signature, expiry, and audience (your client ID).
         // ---------------------------------------------------------------
-        GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), // standard HTTP
-                                                                                                   // transport
+        GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), // standard
+                                                                                                   // HTTP
+                // transport
                 GsonFactory.getDefaultInstance())
                         // "audience" must be YOUR app's Google Client ID.
                         // Google will reject tokens not intended for your app.
@@ -154,8 +166,8 @@ public class AuthService {
         } else {
             // First time login — create a new user
             log.info("Creating new Google user with email: {}", email);
-            User tmp_user = User.builder().email(email).name(name).imageUrl(pictureUrl).provider(AuthProvider.GOOGLE)
-                    .providerId(googleId).build();
+            User tmp_user = User.builder().email(email).name(name).imageUrl(pictureUrl)
+                    .provider(AuthProvider.GOOGLE).providerId(googleId).build();
             user = createUser(tmp_user);
         }
 
@@ -164,7 +176,7 @@ public class AuthService {
         // ---------------------------------------------------------------
         String token = jwtUtils.generateTokenFromKptId(user.getKptId());
         log.info("Google login successful for user: {}", email);
-        return AuthResponse.builder().accessToken(token).build();
+        return AuthResponse.builder().accessToken(token).user(user).build();
     }
 
     /**
@@ -182,8 +194,9 @@ public class AuthService {
         // 2. Build a new User object from the registration request.
         // We MUST hash the password using PasswordEncoder before saving it.
         User user = User.builder().name(registerRequest.getName()).email(registerRequest.getEmail())
-                .password(passwordEncoder.encode(registerRequest.getPassword())).provider(AuthProvider.LOCAL) // Local
-                                                                                                              // sign-up
+                .password(passwordEncoder.encode(registerRequest.getPassword()))
+                .provider(AuthProvider.LOCAL) // Local
+                // sign-up
                 .build();
 
         // 3. Save the new user to the MySQL database.
