@@ -1,6 +1,7 @@
 package com.koustav.kaptur.model;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import org.hibernate.annotations.CreationTimestamp;
 
@@ -16,6 +17,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -26,42 +28,41 @@ import lombok.Setter;
 import lombok.ToString;
 
 /**
- * Entity representing a photo uploaded to an event.
- * Tracks metadata, upload lifecycle status (via TUSd hooks), and S3 storage path.
- * Uses UUID-based photoId as the public identifier (also the TUSd upload ID).
+ * Entity representing a photo uploaded to an event. Tracks metadata, upload
+ * lifecycle status (via TUSd hooks), and S3 storage path. Uses UUID-based
+ * photoId as the public identifier (also the TUSd upload ID).
  * 
  * We use @Getter/@Setter instead of @Data to avoid circular reference issues
  * with the lazily-loaded event and uploadedBy relationships.
  */
 @Entity
-@Table(name = "event_photos")
+@Table(name = "EVENT_PHOTOS")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = {"event", "uploadedBy"})
-@EqualsAndHashCode(exclude = {"event", "uploadedBy"})
+@ToString(exclude = { "event", "uploadedBy" })
+@EqualsAndHashCode(exclude = { "event", "uploadedBy" })
 public class EventPhotos {
 
+    // Unique UUID-based public identifier for this photo (also used as the TUSd
+    // upload ID)
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    // Unique UUID-based public identifier for this photo (also used as the TUSd upload ID)
+    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(unique = true, nullable = false)
-    private String photoId;
+    private UUID photoId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "event_id", nullable = false)
     private Event event;
 
-    // S3 object key stored by the post-finish TUSd hook (e.g. "a1b2c3d4...")
-    private String photoPath;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "uploaded_by", nullable = false)
     private User uploadedBy;
+
+    // S3 object key stored by the post-finish TUSd hook (e.g. "a1b2c3d4...")
+    private String photoPath;
 
     @Column(nullable = false)
     private String filename;
@@ -72,7 +73,8 @@ public class EventPhotos {
     @Column(nullable = false)
     private Long fileSizeInKb;
 
-    // Tracks the current upload lifecycle state (PENDING → UPLOADING → COMPLETED/FAILED)
+    // Tracks the current upload lifecycle state (PENDING → UPLOADING →
+    // COMPLETED/FAILED)
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
@@ -89,4 +91,9 @@ public class EventPhotos {
 
     // Timestamp set when the TUSd post-finish hook confirms the upload
     private LocalDateTime uploadCompletedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
 }

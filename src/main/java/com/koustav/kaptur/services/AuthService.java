@@ -55,12 +55,10 @@ public class AuthService {
         // String kptId = UUID.randomUUID().toString();
         UUID uuid = UuidCreator.getTimeOrderedEpoch();
 
-        String kptId = uuid.toString();
-
-        user.setKptId(kptId);
+        user.setKptId(uuid);
 
         User savedUser = userRepository.save(user);
-        log.info("User created successfully with kptId: {}", kptId);
+        log.info("User created successfully with kptId: {}", uuid);
         return savedUser;
     }
 
@@ -86,7 +84,13 @@ public class AuthService {
             User user = customUserDetails.getUser();
 
             log.info("User authenticated successfully: {}", loginRequest.getEmail());
-            return AuthResponse.builder().accessToken(token).user(user).build();
+            return AuthResponse.builder()
+                    .accessToken(token)
+                    .kptId(user.getKptId())
+                    .email(user.getEmail())
+                    .name(user.getName())
+                    .imageUrl(user.getImageUrl())
+                    .build();
         } catch (Exception e) {
             log.error("Authentication failed for email: {}", loginRequest.getEmail(), e);
             throw e;
@@ -174,9 +178,15 @@ public class AuthService {
         // ---------------------------------------------------------------
         // STEP 5: Issue your own app's JWT and return it to Flutter.
         // ---------------------------------------------------------------
-        String token = jwtUtils.generateTokenFromKptId(user.getKptId());
+        String token = jwtUtils.generateTokenFromKptId(user.getKptId().toString());
         log.info("Google login successful for user: {}", email);
-        return AuthResponse.builder().accessToken(token).user(user).build();
+        return AuthResponse.builder()
+                .accessToken(token)
+                .kptId(user.getKptId())
+                .email(user.getEmail())
+                .name(user.getName())
+                .imageUrl(user.getImageUrl())
+                .build();
     }
 
     /**

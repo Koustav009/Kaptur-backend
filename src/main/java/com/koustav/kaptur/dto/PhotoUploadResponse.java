@@ -1,5 +1,7 @@
 package com.koustav.kaptur.dto;
 
+import java.util.UUID;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -17,7 +19,7 @@ import lombok.NoArgsConstructor;
 public class PhotoUploadResponse {
 
     // UUID-based unique identifier for this photo (also used as TUSd upload ID)
-    private String photoId;
+    private UUID photoId;
 
     // The TUSd server base URL (e.g. http://localhost:1080/files/)
     // Client appends the photoId to this when creating the TUS upload

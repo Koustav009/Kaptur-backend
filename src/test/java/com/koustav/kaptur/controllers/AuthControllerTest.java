@@ -8,6 +8,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.UUID;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -64,11 +66,14 @@ class AuthControllerTest {
                 request.setPassword("password123");
                 request.setName("New User");
 
-                when(authService.registerUser(any(RegisterRequest.class))).thenReturn("User registered successfully!");
+                when(authService.registerUser(any(RegisterRequest.class)))
+                                .thenReturn("User registered successfully!");
 
                 // Act & Assert
-                mockMvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(request))).andExpect(status().isCreated())
+                mockMvc.perform(post("/auth/register")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
+                                .andExpect(status().isCreated())
                                 .andExpect(content().string("User registered successfully!"));
         }
 
@@ -85,8 +90,10 @@ class AuthControllerTest {
                                 .thenThrow(new RuntimeException("Error: Email is already in use!"));
 
                 // Act & Assert
-                mockMvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(request))).andExpect(status().isBadRequest())
+                mockMvc.perform(post("/auth/register")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
+                                .andExpect(status().isBadRequest())
                                 .andExpect(jsonPath("$.error").value("Error: Email is already in use!"));
         }
 
@@ -102,14 +109,27 @@ class AuthControllerTest {
                 request.setEmail("john@example.com");
                 request.setPassword("password123");
 
+                UUID kptId = UUID.fromString("0192f3a4-5678-9abc-def0-123456789abc");
+
                 when(authService.authenticateUser(any(LoginRequest.class)))
-                                .thenReturn(AuthResponse.builder().accessToken("fake-jwt-token").build());
+                                .thenReturn(AuthResponse.builder()
+                                                .accessToken("fake-jwt-token")
+                                                .kptId(kptId)
+                                                .email("john@example.com")
+                                                .name("John Doe")
+                                                .imageUrl(null)
+                                                .build());
 
                 // Act & Assert
-                mockMvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(request))).andExpect(status().isOk())
+                mockMvc.perform(post("/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
+                                .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.accessToken").value("fake-jwt-token"))
-                                .andExpect(jsonPath("$.tokenType").value("Bearer"));
+                                .andExpect(jsonPath("$.tokenType").value("Bearer"))
+                                .andExpect(jsonPath("$.kptId").value("0192f3a4-5678-9abc-def0-123456789abc"))
+                                .andExpect(jsonPath("$.email").value("john@example.com"))
+                                .andExpect(jsonPath("$.name").value("John Doe"));
         }
 
         @Test
@@ -124,8 +144,10 @@ class AuthControllerTest {
                                 .thenThrow(new BadCredentialsException("Bad credentials"));
 
                 // Act & Assert
-                mockMvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(request))).andExpect(status().isUnauthorized())
+                mockMvc.perform(post("/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
+                                .andExpect(status().isUnauthorized())
                                 .andExpect(jsonPath("$.error").value("Invalid email or password"));
         }
 

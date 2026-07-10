@@ -1,14 +1,15 @@
 package com.koustav.kaptur.model;
 
+import java.util.UUID;
+
 import com.koustav.kaptur.model.enums.AuthProvider;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -22,20 +23,19 @@ import lombok.NoArgsConstructor;
  * @Data (from Lombok) automatically creates Getters, Setters, toString, etc.
  */
 @Entity
-@Table(name = "users")
+@Table(name = "USERS", indexes = { @Index(name = "idx_email", columnList = "email"), })
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class User {
 
-    // This is the Primary Key of our table, it will auto-increment.
+    // Primary key — a UUIDv7 (time-ordered) assigned at creation.
+    // UUIDv7 embeds a Unix timestamp, so it is monotonically increasing and
+    // indexes efficiently in B-tree indexes (unlike random UUIDv4).
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(unique = true, nullable = true)
-    private String kptId;
+    @Column(name = "kpt_id", nullable = false, updatable = false, columnDefinition = "uuid")
+    private UUID kptId;
 
     // unique = true means two users cannot have the same email.
     @Column(nullable = false, unique = true)

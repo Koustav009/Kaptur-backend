@@ -2,6 +2,7 @@ package com.koustav.kaptur.controllers;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -157,13 +158,14 @@ public class FileController {
 
     /**
      * Helper method to get the authenticated user from Spring Security's context.
-     * The JWT stores kptId as the principal name.
+     * The JWT stores kptId as the subject claim (UUID string).
      */
     private User getCurrentUser() {
         org.springframework.security.core.Authentication authentication =
                 org.springframework.security.core.context.SecurityContextHolder
                         .getContext().getAuthentication();
-        String kptId = authentication.getName();
+        String kptIdStr = authentication.getName();
+        UUID kptId = UUID.fromString(kptIdStr);
         log.debug("Getting current user with kptId: {}", kptId);
         return userRepository.findByKptId(kptId)
                 .orElseThrow(() -> new RuntimeException("User not found with ID: " + kptId));

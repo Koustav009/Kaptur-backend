@@ -2,6 +2,7 @@ package com.koustav.kaptur.model;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -23,7 +24,7 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 
 @Entity
-@Table(name = "events")
+@Table(name = "EVENTS")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -33,11 +34,9 @@ import lombok.ToString;
 public class Event {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(unique = true, nullable = true)
-    private String evntid;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "EVNT_ID")
+    private UUID evntId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by", nullable = false)

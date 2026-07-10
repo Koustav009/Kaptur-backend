@@ -1,6 +1,7 @@
 package com.koustav.kaptur.dto;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,14 +18,13 @@ import lombok.NoArgsConstructor;
 @Builder
 public class PhotoResponse {
 
-    private Long id;
-    private String photoId;
+    private UUID photoId;
     private String filename;
     private String fileType;
     private Long fileSizeInKb;
     private String photoPath;
     private String photoStatus;
-    private String uploadedByKptId;
+    private UUID uploadedByKptId;
     private String uploadedByName;
     private LocalDateTime createdAt;
     private LocalDateTime uploadCompletedAt;

@@ -14,6 +14,7 @@ import com.koustav.kaptur.dto.LoginRequest;
 import com.koustav.kaptur.dto.RegisterRequest;
 import com.koustav.kaptur.services.AuthService;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -39,7 +40,7 @@ public class AuthController {
      *              Request, etc.).
      */
     @PostMapping("/login")
-    public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {
+    public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
         log.info("Login attempt for email: {}", loginRequest.getEmail());
         try {
             // We delegate the heavy work to the Service layer.
@@ -57,7 +58,7 @@ public class AuthController {
      * the user data from Flutter, verify it, and issue our backend's JWT.
      */
     @PostMapping("/google")
-    public ResponseEntity<?> googleLogin(@RequestBody GoogleLoginRequest request) {
+    public ResponseEntity<?> googleLogin(@Valid @RequestBody GoogleLoginRequest request) {
         // Exchange Google data for our backend's JWT token.
         AuthResponse response = authService.googleLogin2(request);
         return ResponseEntity.ok(response);
@@ -67,7 +68,7 @@ public class AuthController {
      * @PostMapping("/register") handles POST requests to /auth/register.
      */
     @PostMapping("/register")
-    public ResponseEntity<?> registerUser(@RequestBody RegisterRequest registerRequest) {
+    public ResponseEntity<?> registerUser(@Valid @RequestBody RegisterRequest registerRequest) {
         log.info("Registration attempt for email: {}", registerRequest.getEmail());
         try {
             // We call the Service to save the user in the database.

@@ -29,6 +29,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -40,7 +41,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Controller tests for EventController using MockMvc.
  * 
  * Security filters are disabled; SecurityContext is manually set
- * to simulate an authenticated user (kptId = "KPT0000001").
+ * to simulate an authenticated user (kptId as UUID string).
  */
 @WebMvcTest(EventController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -67,24 +68,29 @@ class EventControllerTest {
     private CustomUserDetailsService customUserDetailsService;
 
     private User testUser;
+    private UUID testKptId;
+    private UUID testEvntId;
 
     @BeforeEach
     void setUp() {
+        testKptId = UUID.fromString("0192f3a4-5678-9abc-def0-123456789abc");
+        testEvntId = UUID.fromString("0192f3b5-6789-abcd-ef01-234567890bcd");
+
         // Create a test user that getCurrentUser() will resolve
         testUser = User.builder()
-                .id(1L)
-                .kptId("KPT0000001")
+                .kptId(testKptId)
                 .email("john@example.com")
                 .name("John Doe")
                 .provider(AuthProvider.LOCAL)
                 .build();
 
         // Mock the repository lookup that getCurrentUser() calls
-        when(userRepository.findByKptId("KPT0000001")).thenReturn(Optional.of(testUser));
+        when(userRepository.findByKptId(testKptId)).thenReturn(Optional.of(testUser));
 
-        // Set up the SecurityContext so authentication.getName() returns "KPT0000001"
+        // Set up the SecurityContext so authentication.getName() returns kptId UUID string
         UsernamePasswordAuthenticationToken auth =
-                new UsernamePasswordAuthenticationToken("KPT0000001", null, List.of());
+                new UsernamePasswordAuthenticationToken(
+                        testKptId.toString(), null, List.of());
         SecurityContextHolder.getContext().setAuthentication(auth);
     }
 
@@ -109,13 +115,12 @@ class EventControllerTest {
                 .build();
 
         EventResponse response = EventResponse.builder()
-                .id(1L)
-                .evntid("EVNT0000001")
+                .evntId(testEvntId)
                 .eventTitle("Wedding")
                 .description("A beautiful wedding")
                 .eventDate(LocalDate.of(2026, 8, 15))
                 .eventLocation("Kolkata")
-                .creatorId(1L)
+                .creatorId(testKptId)
                 .creatorName("John Doe")
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
@@ -129,10 +134,11 @@ class EventControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.evntid").value("EVNT0000001"))
+                .andExpect(jsonPath("$.evntId").value(testEvntId.toString()))
                 .andExpect(jsonPath("$.eventTitle").value("Wedding"))
                 .andExpect(jsonPath("$.eventLocation").value("Kolkata"))
-                .andExpect(jsonPath("$.creatorName").value("John Doe"));
+                .andExpect(jsonPath("$.creatorName").value("John Doe"))
+                .andExpect(jsonPath("$.creatorId").value(testKptId.toString()));
     }
 
     @Test
@@ -176,20 +182,19 @@ class EventControllerTest {
     void getUserEvents_success() throws Exception {
         // Arrange
         EventResponse response = EventResponse.builder()
-                .id(1L)
-                .evntid("EVNT0000001")
+                .evntId(testEvntId)
                 .eventTitle("Wedding")
                 .eventDate(LocalDate.of(2026, 8, 15))
-                .creatorId(1L)
+                .creatorId(testKptId)
                 .creatorName("John Doe")
                 .build();
 
-        when(eventService.getUserCreatedEvents(1L)).thenReturn(List.of(response));
+        when(eventService.getUserJoinedEvents(eq(testKptId))).thenReturn(List.of(response));
 
         // Act & Assert
         mockMvc.perform(get("/events"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].evntid").value("EVNT0000001"))
+                .andExpect(jsonPath("$[0].evntId").value(testEvntId.toString()))
                 .andExpect(jsonPath("$[0].eventTitle").value("Wedding"))
                 .andExpect(jsonPath("$.length()").value(1));
     }
@@ -198,7 +203,7 @@ class EventControllerTest {
     @DisplayName("GET /events - no events returns empty array")
     void getUserEvents_empty() throws Exception {
         // Arrange
-        when(eventService.getUserCreatedEvents(1L)).thenReturn(List.of());
+        when(eventService.getUserJoinedEvents(eq(testKptId))).thenReturn(List.of());
 
         // Act & Assert
         mockMvc.perform(get("/events"))
@@ -215,21 +220,20 @@ class EventControllerTest {
     void getEventById_success() throws Exception {
         // Arrange
         EventResponse response = EventResponse.builder()
-                .id(1L)
-                .evntid("EVNT0000001")
+                .evntId(testEvntId)
                 .eventTitle("Wedding")
                 .eventDate(LocalDate.of(2026, 8, 15))
                 .eventLocation("Kolkata")
-                .creatorId(1L)
+                .creatorId(testKptId)
                 .creatorName("John Doe")
                 .build();
 
-        when(eventService.getEventById(1L)).thenReturn(response);
+        when(eventService.getEventById(eq(testEvntId))).thenReturn(response);
 
         // Act & Assert
-        mockMvc.perform(get("/events/1"))
+        mockMvc.perform(get("/events/" + testEvntId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.evntid").value("EVNT0000001"))
+                .andExpect(jsonPath("$.evntId").value(testEvntId.toString()))
                 .andExpect(jsonPath("$.eventTitle").value("Wedding"));
     }
 
@@ -237,13 +241,14 @@ class EventControllerTest {
     @DisplayName("GET /events/{id} - non-existent event returns 400")
     void getEventById_notFound_returns400() throws Exception {
         // Arrange
-        when(eventService.getEventById(999L))
-                .thenThrow(new RuntimeException("Event not found with id: 999"));
+        UUID unknownId = UUID.fromString("0192f3ff-ffff-ffff-ffff-ffffffffffff");
+        when(eventService.getEventById(eq(unknownId)))
+                .thenThrow(new RuntimeException("Event not found with id: " + unknownId));
 
         // Act & Assert
-        mockMvc.perform(get("/events/999"))
+        mockMvc.perform(get("/events/" + unknownId))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("Event not found with id: 999"));
+                .andExpect(jsonPath("$.error").value("Event not found with id: " + unknownId));
     }
 
     // ==========================================
@@ -262,21 +267,20 @@ class EventControllerTest {
                 .build();
 
         EventResponse response = EventResponse.builder()
-                .id(1L)
-                .evntid("EVNT0000001")
+                .evntId(testEvntId)
                 .eventTitle("Updated Wedding")
                 .description("Updated description")
                 .eventDate(LocalDate.of(2026, 9, 20))
                 .eventLocation("Mumbai")
-                .creatorId(1L)
+                .creatorId(testKptId)
                 .creatorName("John Doe")
                 .build();
 
-        when(eventService.updateEvent(eq(1L), any(EventRequest.class), any(User.class)))
+        when(eventService.updateEvent(eq(testEvntId), any(EventRequest.class), any(User.class)))
                 .thenReturn(response);
 
         // Act & Assert
-        mockMvc.perform(put("/events/1")
+        mockMvc.perform(put("/events/" + testEvntId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -293,11 +297,11 @@ class EventControllerTest {
                 .eventDate(LocalDate.of(2026, 1, 1))
                 .build();
 
-        when(eventService.updateEvent(eq(1L), any(EventRequest.class), any(User.class)))
+        when(eventService.updateEvent(eq(testEvntId), any(EventRequest.class), any(User.class)))
                 .thenThrow(new RuntimeException("You are not authorized to update this event"));
 
         // Act & Assert
-        mockMvc.perform(put("/events/1")
+        mockMvc.perform(put("/events/" + testEvntId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
@@ -312,10 +316,10 @@ class EventControllerTest {
     @DisplayName("DELETE /events/{id} - owner deletes event returns 200")
     void deleteEvent_success() throws Exception {
         // Arrange
-        doNothing().when(eventService).deleteEvent(1L, testUser);
+        doNothing().when(eventService).deleteEvent(eq(testEvntId), any(User.class));
 
         // Act & Assert
-        mockMvc.perform(delete("/events/1"))
+        mockMvc.perform(delete("/events/" + testEvntId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("Event deleted successfully"));
     }
@@ -325,10 +329,10 @@ class EventControllerTest {
     void deleteEvent_unauthorized_returns400() throws Exception {
         // Arrange
         doThrow(new RuntimeException("You are not authorized to delete this event"))
-                .when(eventService).deleteEvent(1L, testUser);
+                .when(eventService).deleteEvent(eq(testEvntId), any(User.class));
 
         // Act & Assert
-        mockMvc.perform(delete("/events/1"))
+        mockMvc.perform(delete("/events/" + testEvntId))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("You are not authorized to delete this event"));
     }

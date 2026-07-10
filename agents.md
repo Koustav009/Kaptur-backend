@@ -29,7 +29,7 @@ Welcome, fellow AI Agent! This document is your **comprehensive source of truth*
 | **Storage** | S3-compatible (configured in TUSd container) | - |
 | **API Docs** | SpringDoc OpenAPI / Swagger UI | 3.0.2 |
 | **Build Tool** | Maven | Wrapper included |
-| **Utilities** | Lombok | - |
+| **Utilities** | Lombok, UUID Creator (f4b6a3) | - |
 
 ---
 
@@ -48,7 +48,7 @@ controllers/ → services/ → repository/ → database
    - `@RequiredArgsConstructor` for constructor injection
    - `@Data` for DTOs
    - `@Getter`/`@Setter` for entities (avoid `@Data` to prevent circular reference issues)
-3. **Validation:** Use Jakarta Validation annotations (`@NotBlank`, `@NotNull`, `@Valid`)
+3. **Validation:** Use Jakarta Validation annotations (`@NotBlank`, `@NotNull`, `@Email`, `@Valid`)
 4. **Verbose Comments:** Every class and method must have educational comments explaining what and why
 5. **Code Clarity:** Prioritize readable code over clever one-liners
 
@@ -65,34 +65,36 @@ com.koustav.kaptur/
 │   ├── FileController.java         # Photo upload lifecycle: init, list, delete + TUSd hooks
 │   └── GlobalExceptionHandler.java # Global error handling
 ├── dto/                            # Data Transfer Objects
-│   ├── AuthResponse.java           # JWT response
+│   ├── AuthResponse.java           # JWT + safe user profile (no entity leak)
 │   ├── EventRequest.java           # Event create/update request
-│   ├── EventResponse.java          # Event response
+│   ├── EventResponse.java          # Event response (UUID-based)
 │   ├── GoogleLoginRequest.java     # Google OAuth request
-│   ├── LoginRequest.java           # Login request
+│   ├── LoginRequest.java           # Login request (with validation)
 │   ├── PhotoUploadRequest.java     # Init upload: filename, fileType, fileSizeInKb
 │   ├── PhotoUploadResponse.java    # Init response: photoId (UUID), tusdUploadUrl
-│   ├── PhotoResponse.java          # Photo listing: metadata + downloadUrl
-│   └── RegisterRequest.java        # Registration request
+│   ├── PhotoResponse.java          # Photo listing: photoId (UUID), metadata + downloadUrl
+│   └── RegisterRequest.java        # Registration request (with validation)
 ├── model/                          # JPA Entities
-│   ├── User.java                   # User entity
-│   ├── Event.java                  # Event entity
-│   ├── EventMembers.java           # Event membership (bridge table)
-│   ├── EventMembersId.java         # Composite key for EventMembers
-│   ├── EventPhotos.java            # Photo metadata entity (lifecycle tracked)
+│   ├── User.java                   # User entity (UUID kptId PK)
+│   ├── Event.java                  # Event entity (UUID evntId PK)
+│   ├── EventMembersDtl.java        # Event membership (UUID memberDtlId PK)
+│   ├── EventMembersHistory.java    # Membership history/archive (soft-deleted records)
+│   ├── EventPhotos.java            # Photo metadata entity (UUID photoId PK)
+│   ├── UserRoleMst.java            # Role master data (UUID roleId PK)
 │   ├── CustomUserDetails.java      # Spring Security user adapter
 │   ├── TusdHookRequest.java        # TUS upload hook request (from TUSd server)
 │   ├── TusdHookResponse.java       # TUS hook response (with ChangeFileInfo for ID override)
 │   └── enums/
 │       ├── AuthProvider.java       # LOCAL, GOOGLE
 │       ├── PhotoStatus.java        # PENDING, UPLOADING, COMPLETED, FAILED
-│       ├── Role.java               # OWNER, MEMBER, GUEST
+│       ├── Role.java               # SUPER_ADMIN, USER, ADMIN, PHOTOMAN, GUEST
 │       └── Status.java             # PENDING, ACCEPTED, REJECTED, BLOCKED
 ├── repository/                     # Data access layer
-│   ├── UserRepository.java         # User queries
-│   ├── EventRepository.java        # Event queries
-│   ├── EventMembersRepository.java # Membership queries
-│   └── EventPhotosRepository.java  # Photo queries (by photoId, by eventId non-deleted)
+│   ├── UserRepository.java         # User queries (UUID-based)
+│   ├── EventRepository.java        # Event queries (UUID-based)
+│   ├── EventMembersRepository.java # Membership queries (UUID-based)
+│   ├── EventPhotosRepository.java  # Photo queries (UUID-based)
+│   └── UserRoleMstRepository.java  # Role master queries
 ├── security/                       # Security layer
 │   ├── SecurityConfig.java         # Main security configuration
 │   ├── AuthTokenFilter.java        # JWT filter (runs on every request)
@@ -113,10 +115,11 @@ com.koustav.kaptur/
 
 **JWT-Based Stateless Authentication:**
 1. User logs in via `/auth/login` or `/auth/google`
-2. Server validates credentials and returns JWT token
+2. Server validates credentials and returns JWT token + safe user profile (no password!)
 3. Client sends JWT in `Authorization: Bearer <token>` header
-4. `AuthTokenFilter` validates token on every request
-5. Security context is populated with user details
+4. `AuthTokenFilter` validates token on every request — extracts kptId UUID string from subject claim
+5. Security context is populated with the kptId as the principal name
+6. Controllers call `getCurrentUser()` which parses the kptId string → UUID, then loads the full User
 
 ### Google Native Login Flow (Used for Flutter)
 ```
@@ -130,35 +133,37 @@ Extract email, name, picture, googleId from payload
     ↓
 Find or create user in database
     ↓
-Generate JWT with kptId as subject
+Generate JWT with kptId.toString() as subject
     ↓
-Return AuthResponse with JWT
+Return AuthResponse with JWT + safe user fields (kptId, email, name, imageUrl)
 ```
 
-### Public ID Formats
-- **User kptId:** `KPT0000001` (KPT + 7-digit zero-padded ID)
-- **Event evntid:** `EVNT0000001` (EVNT + 7-digit zero-padded ID)
-- **Photo photoId:** UUID v4 string (e.g. `550e8400-e29b-41d4-a716-446655440000`)
+### Public ID Formats — All UUIDs
+- **User kptId:** UUID v7 (time-ordered), e.g. `0192f3a4-5678-9abc-def0-123456789abc`
+- **Event evntId:** UUID v7 (time-ordered), e.g. `0192f3b5-6789-abcd-ef01-234567890bcd`
+- **Photo photoId:** UUID v4, e.g. `550e8400-e29b-41d4-a716-446655440000`
+- **Role roleId:** UUID, auto-generated by Hibernate
+- **Membership memberDtlId:** UUID, auto-generated by Hibernate
 
-### ✅ Authentication Flow (Verified Working)
+> **Breaking change from v1:** Old format used `KPT0000001` / `EVNT0000001` string prefixes. Now all IDs are standard UUIDs. UUID v7 (time-ordered) is used for entities that benefit from B-tree index locality (User, Event). UUID v4 is used where randomness is preferred (photos).
 
-The authentication system is **aligned and functional**. JWT stores `kptId`, and all components correctly use `kptId` for user lookup.
+### ✅ Authentication Flow
 
-**Consistent Flow:**
 ```
-JWT Generation (JwtUtils.buildJwt()) → Stores kptId (e.g., "KPT0000001")
+JWT Generation (JwtUtils.buildJwt()) → Stores kptId.toString() as subject claim
     ↓
-JWT Extraction (AuthTokenFilter) → Extracts kptId → sets as username in SecurityContext
+JWT Extraction (AuthTokenFilter) → Extracts subject → sets as principal name in SecurityContext
     ↓
-Controller Query (getCurrentUser()) → Queries findByKptId(kptId) ✅
+Controller (getCurrentUser()) → UUID.fromString(authentication.getName()) → findByKptId(uuid)
 ```
 
-**Code Reference (`EventController.getCurrentUser()`):**
+**Current `getCurrentUser()` pattern:**
 ```java
 private User getCurrentUser() {
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-    String kptId = authentication.getName(); // Returns kptId from JWT
-    return userRepository.findByKptId(kptId) // ✅ Correctly queries by kptId
+    String kptIdStr = authentication.getName(); // Returns kptId UUID string from JWT
+    UUID kptId = UUID.fromString(kptIdStr);
+    return userRepository.findByKptId(kptId)
         .orElseThrow(() -> new RuntimeException("User not found with ID: " + kptId));
 }
 ```
@@ -182,57 +187,103 @@ User (1) ←─────────────── (N) Event
   │                              │               │
   │                              │               └── uploadedBy → User
   │                              │
-  └─────────── (N) EventMembers (N) ───────────┘
-                    │
-                    ├── role: OWNER, MEMBER, GUEST
-                    └── status: PENDING, ACCEPTED, REJECTED, BLOCKED
+  │                              ├────────── (N) EventMembersDtl
+  │                              │               │
+  │                              │               └── roleMst → UserRoleMst
+  │                              │
+  │                              └────────── (N) EventMembersHistory
+  │                                              │
+  │                                              └── roleMst → UserRoleMst
+  │
+  └─────────── (N) EventMembersDtl (N) ───────────┘
+  └─────────── (N) EventMembersHistory (N) ───────┘
+
+UserRoleMst (1) ── (N) EventMembersDtl
+UserRoleMst (1) ── (N) EventMembersHistory
 ```
 
 ### Key Entities
 
-**User**
-- `id` (Long, PK, auto-increment)
-- `kptId` (String, unique, format: KPT0000001)
-- `email` (String, unique)
-- `password` (String, null for Google users)
-- `name` (String)
-- `provider` (AuthProvider: LOCAL, GOOGLE)
-- `providerId` (String, Google's unique ID)
-- `imageUrl` (String, profile picture URL)
+**User** — Table: `USERS`
+| Field | Type | Notes |
+|-------|------|-------|
+| `kptId` | UUID (PK) | UUIDv7 time-ordered, assigned at creation |
+| `email` | String | Unique, not null |
+| `password` | String | Null for Google OAuth users |
+| `name` | String | Not null |
+| `provider` | AuthProvider enum | LOCAL or GOOGLE |
+| `providerId` | String | Google's unique `sub` claim |
+| `imageUrl` | String | Profile picture URL |
 
-**Event**
-- `id` (Long, PK, auto-increment)
-- `evntid` (String, unique, format: EVNT0000001)
-- `createdBy` (User, ManyToOne)
-- `eventTitle` (String, required)
-- `description` (String)
-- `eventDate` (LocalDate, required)
-- `eventLocation` (String)
-- `isActive` (Boolean, default: true)
-- `isDeleted` (Boolean, default: false) — soft delete flag
-- `createdAt` (LocalDateTime, auto-generated)
-- `updatedAt` (LocalDateTime, auto-updated)
+**Event** — Table: `EVENTS`
+| Field | Type | Notes |
+|-------|------|-------|
+| `evntId` | UUID (PK) | UUIDv7 time-ordered |
+| `createdBy` | User (ManyToOne) | FK → USERS, LAZY fetch |
+| `eventTitle` | String | Not null |
+| `description` | String | Nullable |
+| `eventDate` | LocalDate | Nullable |
+| `eventLocation` | String | Nullable |
+| `isActive` | Boolean | Default true |
+| `isDeleted` | Boolean | Soft delete flag, default false |
+| `createdAt` | LocalDateTime | Auto-set via @CreationTimestamp |
+| `updatedAt` | LocalDateTime | Auto-set via @UpdateTimestamp |
 
-**EventMembers** (Composite PK: EventMembersId)
-- `event` (Event, FK)
-- `user` (User, FK)
-- `role` (Role: OWNER, MEMBER, GUEST)
-- `status` (Status: PENDING, ACCEPTED, REJECTED, BLOCKED)
-- `joinedAt` (LocalDateTime)
+**EventMembersDtl** — Table: `EVENT_MEMBERS_DTL` (unique constraint on event_id + user_id)
+| Field | Type | Notes |
+|-------|------|-------|
+| `memberDtlId` | UUID (PK) | Auto-generated |
+| `event` | Event (ManyToOne) | FK → EVENTS, LAZY |
+| `user` | User (ManyToOne) | FK → USERS, LAZY |
+| `roleMst` | UserRoleMst (ManyToOne) | FK → USER_ROLE_MST, LAZY |
+| `joinedAt` | LocalDateTime | Auto-set to now() if null |
+| `assignedBy` | String | Nullable, max 50 chars |
+| `remarks` | String | Nullable, max 255 chars |
+| `createdAt` | LocalDateTime | Set via @PrePersist |
+| `updatedAt` | LocalDateTime | Set via @PrePersist + @PreUpdate |
 
-**EventPhotos**
-- `id` (Long, PK, auto-increment)
-- `photoId` (String, unique, UUID v4)
-- `event` (Event, FK)
-- `uploadedBy` (User, FK)
-- `filename` (String) — original filename from metadata
-- `fileType` (String) — MIME type from metadata
-- `fileSizeInKb` (Long)
-- `photoPath` (String) — S3 object key, set by post-finish hook
-- `photoStatus` (PhotoStatus: PENDING → UPLOADING → COMPLETED / FAILED)
-- `isDeleted` (Boolean, default: false) — soft delete flag
-- `createdAt` (LocalDateTime, auto-generated)
-- `uploadCompletedAt` (LocalDateTime, set on post-finish)
+> **Important:** A record in EventMembersDtl = accepted member. There is no separate invitation/status field. The `Status` enum exists but is not currently used.
+
+**EventMembersHistory** — Table: `EVENT_MEMBERS_HISTORY`
+| Field | Type | Notes |
+|-------|------|-------|
+| `historyId` | UUID (PK) | Auto-generated |
+| `memberDtlId` | UUID | References the original EventMembersDtl record ID (no FK constraint) |
+| `event` | Event (ManyToOne) | FK → EVENTS, LAZY |
+| `user` | User (ManyToOne) | FK → USERS, LAZY |
+| `roleMst` | UserRoleMst (ManyToOne) | FK → USER_ROLE_MST, LAZY |
+| `isDeleted` | Boolean | Default true |
+| `deletedAt` | LocalDateTime | Set via @PrePersist |
+| Other fields | — | Mirrors EventMembersDtl structure |
+
+**EventPhotos** — Table: `EVENT_PHOTOS`
+| Field | Type | Notes |
+|-------|------|-------|
+| `photoId` | UUID (PK) | UUIDv4, also used as TUSd upload ID |
+| `event` | Event (ManyToOne) | FK → EVENTS, LAZY |
+| `uploadedBy` | User (ManyToOne) | FK → USERS, LAZY |
+| `filename` | String | Not null |
+| `fileType` | String | MIME type, not null |
+| `fileSizeInKb` | Long | Not null |
+| `photoPath` | String | S3 object key, set by post-finish hook |
+| `photoStatus` | PhotoStatus enum | PENDING → UPLOADING → COMPLETED / FAILED |
+| `isDeleted` | Boolean | Soft delete flag, default false |
+| `createdAt` | LocalDateTime | Auto-set via @CreationTimestamp |
+| `uploadCompletedAt` | LocalDateTime | Set on post-finish hook |
+
+**UserRoleMst** — Table: `USER_ROLE_MST`
+| Field | Type | Notes |
+|-------|------|-------|
+| `roleId` | UUID (PK) | Auto-generated |
+| `roleCode` | Role enum | Unique, e.g. SUPER_ADMIN, USER, ADMIN, PHOTOMAN, GUEST |
+| `roleName` | String | Human-readable, e.g. "Administrator" |
+| `description` | String | Nullable |
+| `isSystemRole` | Boolean | System roles cannot be deleted |
+| `isActive` | Boolean | Default true |
+| `createdAt` | LocalDateTime | Set via @PrePersist |
+| `updatedAt` | LocalDateTime | Set via @PrePersist + @PreUpdate |
+| `createdBy` | String | Nullable |
+| `updatedBy` | String | Nullable |
 
 ---
 
@@ -251,12 +302,12 @@ User (1) ←─────────────── (N) Event
 |--------|----------|-------------|---------------|
 | POST | `/events` | Create event | Yes |
 | GET | `/events` | Get user's events | Yes |
-| GET | `/events/{id}` | Get event by ID (`id` is internal Long) | Yes |
+| GET | `/events/{id}` | Get event by UUID | Yes |
 | PUT | `/events/{id}` | Update event | Yes |
 | DELETE | `/events/{id}` | Soft delete event | Yes |
 
 ### Photos (`/events/{eventId}/photos`)
-**`eventId` in all photo endpoints is the public `evntid` string (e.g. `EVNT0000001`), NOT the internal Long ID.**
+**`eventId` in all photo endpoints is the UUID string (e.g. `550e8400-e29b-41d4-a716-446655440000`).**
 
 | Method | Endpoint | Description | Auth Required |
 |--------|----------|-------------|---------------|
@@ -380,14 +431,13 @@ Authorization: Bearer <jwt>
 → 200 OK
 [
   {
-    "id": 1,
     "photoId": "550e8400-e29b-41d4-a716-446655440000",
     "filename": "vacation.jpg",
     "fileType": "image/jpeg",
     "fileSizeInKb": 2048,
     "photoPath": "a1b2c3d4e5f6...",
     "photoStatus": "COMPLETED",
-    "uploadedByKptId": "KPT0000001",
+    "uploadedByKptId": "0192f3a4-5678-9abc-def0-123456789abc",
     "uploadedByName": "John Doe",
     "createdAt": "2026-06-02T10:30:00",
     "uploadCompletedAt": "2026-06-02T10:35:00",
@@ -422,25 +472,49 @@ Permission: Only the photo uploader or the event creator can delete.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `photoId` | String | UUID v4 assigned by server — also the TUSd upload ID |
+| `photoId` | UUID | UUID v4 assigned by server — also the TUSd upload ID |
 | `tusdUploadUrl` | String | TUSd base URL (e.g. `http://localhost:1080/files/`) |
 
 ### PhotoResponse DTO
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `id` | Long | Internal DB ID |
-| `photoId` | String | UUID v4 public identifier |
+| `photoId` | UUID | UUID v4 public identifier |
 | `filename` | String | Original filename |
 | `fileType` | String | MIME type |
 | `fileSizeInKb` | Long | File size in KB |
 | `photoPath` | String | S3 object key (null until upload completes) |
 | `photoStatus` | String | `PENDING`, `UPLOADING`, `COMPLETED`, or `FAILED` |
-| `uploadedByKptId` | String | `KPT0000001` of the uploader |
+| `uploadedByKptId` | UUID | kptId of the uploader |
 | `uploadedByName` | String | Display name of the uploader |
 | `createdAt` | ISO DateTime | When the photo record was created |
 | `uploadCompletedAt` | ISO DateTime | When the upload finished (null if not COMPLETED) |
 | `downloadUrl` | String | `http://localhost:1080/files/{photoId}` for streaming |
+
+### AuthResponse DTO
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `accessToken` | String | JWT token |
+| `tokenType` | String | "Bearer" (default) |
+| `kptId` | UUID | User's public ID |
+| `email` | String | User's email |
+| `name` | String | User's display name |
+| `imageUrl` | String | Profile picture URL (null for local users) |
+
+### EventResponse DTO
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `evntId` | UUID | Event's public ID |
+| `eventTitle` | String | Event title |
+| `description` | String | Event description |
+| `eventDate` | LocalDate | Event date |
+| `eventLocation` | String | Event location |
+| `creatorId` | UUID | Creator's kptId |
+| `creatorName` | String | Creator's display name |
+| `createdAt` | ISO DateTime | Creation timestamp |
+| `updatedAt` | ISO DateTime | Last update timestamp |
 
 ### PhotoStatus Lifecycle
 
@@ -470,38 +544,15 @@ Common errors:
 
 ### Key Design Decisions for Client Developers
 
-1. **`photoId` is a UUID** — generated server-side, used as the TUSd upload ID. Always the same for the same photo across all operations.
-2. **`eventId` in photo endpoints is `evntid`** — the public string like `EVNT0000001`, NOT the internal numeric ID.
-3. **`tusdUploadUrl`** is just the base URL. Client appends nothing — the TUS protocol's `POST` to the base URL creates the upload resource.
-4. **`Upload-Metadata`** values MUST be Base64-encoded strings in the TUS protocol.
-5. **Resumability** is fully handled by TUSd. Store the upload URL (`tusdUploadUrl + "/" + photoId`) and use `HEAD` to get the current offset.
-6. **Event membership required** — user must be an ACCEPTED member of the event to upload or view photos.
-7. **Files served via TUSd** — download URL points to TUSd, which streams from S3. No additional auth on TUSd download (files are public by URL).
-8. **Photo/video support** — fileType MIME string determines media type. No separate enum.
-
-### Full TUS Upload Example (curl)
-
-```bash
-# Step 1: Init via Spring Boot
-curl -X POST http://localhost:8080/events/EVNT0000001/photos/init \
-  -H "Authorization: Bearer $JWT" \
-  -H "Content-Type: application/json" \
-  -d '{"filename":"photo.jpg","fileType":"image/jpeg","fileSizeInKb":2048}'
-
-# Response: {"photoId":"abc-123-...","tusdUploadUrl":"http://localhost:1080/files/"}
-
-# Step 2: Create upload on TUSd
-curl -X POST http://localhost:1080/files/ \
-  -H "Upload-Length: 2097152" \
-  -H "Upload-Metadata: photoId $(echo -n 'abc-123-...' | base64)" \
-  -H "Tus-Resumable: 1.0.0"
-
-# Step 3: Upload chunks
-curl -X PATCH http://localhost:1080/files/abc-123-... \
-  -H "Upload-Offset: 0" \
-  -H "Content-Type: application/offset+octet-stream" \
-  --data-binary @photo.jpg
-```
+1. **All IDs are UUIDs** — No more `KPT0000001`-style strings. All identifiers are standard UUIDs sent as strings in JSON.
+2. **`photoId` is a UUID** — generated server-side, used as the TUSd upload ID. Always the same for the same photo across all operations.
+3. **`eventId` in photo endpoints is a UUID string** — the event's UUID, NOT an old-style string ID.
+4. **`tusdUploadUrl`** is just the base URL. Client appends nothing — the TUS protocol's `POST` to the base URL creates the upload resource.
+5. **`Upload-Metadata`** values MUST be Base64-encoded strings in the TUS protocol.
+6. **Resumability** is fully handled by TUSd. Store the upload URL (`tusdUploadUrl + "/" + photoId`) and use `HEAD` to get the current offset.
+7. **Event membership is binary** — existence in EventMembersDtl = accepted member. No pending/rejected states.
+8. **Files served via TUSd** — download URL points to TUSd, which streams from S3.
+9. **Photo/video support** — fileType MIME string determines media type. No separate enum.
 
 ---
 
@@ -558,6 +609,17 @@ tusd.base-url=http://localhost:1080/files
 - Uses `ddl-auto=update` for automatic schema management
 - Flyway is configured but migrations directory is empty
 - Schema: `kaptur_schema` in PostgreSQL
+- **Important:** The `USER_ROLE_MST` table must be seeded with role data before creating events. Run a SQL seed script or insert manually:
+
+```sql
+INSERT INTO kaptur_schema.USER_ROLE_MST (role_id, role_code, role_name, description, is_system_role, is_active, created_at, updated_at)
+VALUES
+  (gen_random_uuid(), 'SUPER_ADMIN', 'Super Administrator', 'Full system access', true, true, now(), now()),
+  (gen_random_uuid(), 'USER', 'User', 'Standard user', true, true, now(), now()),
+  (gen_random_uuid(), 'ADMIN', 'Administrator', 'Event administrator', true, true, now(), now()),
+  (gen_random_uuid(), 'PHOTOMAN', 'Photographer', 'Photo contributor', true, true, now(), now()),
+  (gen_random_uuid(), 'GUEST', 'Guest', 'Read-only access', true, true, now(), now());
+```
 
 ---
 
@@ -568,20 +630,22 @@ tusd.base-url=http://localhost:1080/files
 - **Status:** Entirely commented out
 - **Reason:** Using native Google login for Flutter instead of browser-based OAuth2
 
-### 2. Missing Validation Annotations
-- **Location:** `LoginRequest.java`, `RegisterRequest.java`, `GoogleLoginRequest.java`
-- **Issue:** No `@NotBlank` or `@Email` validation
-- **Impact:** Invalid data can reach service layer
+### 2. AuthTokenFilter Uses Stub Principal
+- **Location:** `AuthTokenFilter.java`
+- **Issue:** Creates a bare Spring Security `User` object instead of loading `CustomUserDetails` from DB. Controllers work around this by calling `userRepository.findByKptId()` directly in `getCurrentUser()`.
+- **Impact:** Role-based access control (`@PreAuthorize`) won't work since authorities are always empty.
 
 ### 3. No Role-Based Access Control on Events
-- **Location:** `EventController.java`
-- **Issue:** No checks for MEMBER/GUEST roles on event operations
-- **Current:** Only checks if user is the creator (OWNER)
-- **Missing:** Invite system, role-based permissions
+- **Location:** `EventController.java`, `EventService.java`
+- **Issue:** Only checks if user is the creator. Does not use the `roleMst` relationship to grant MEMBER-level permissions.
+- **Missing:** Invite system, role-based permissions for members.
 
 ### 4. Test Coverage
 - **Current:** Only `KapturApplicationTests.java` (context loads test)
 - **Missing:** Unit tests for services, integration tests for controllers
+
+### 5. Role Seed Data Required
+- The `USER_ROLE_MST` table must be manually seeded before the app can create events. No auto-seeding mechanism exists yet.
 
 ---
 
@@ -597,7 +661,7 @@ public enum NewEnum {
 }
 ```
 
-### 2. Create Entity
+### 2. Create Entity (UUID PK)
 ```java
 // src/main/java/com/koustav/kaptur/model/NewEntity.java
 @Entity
@@ -609,18 +673,18 @@ public enum NewEnum {
 @Builder
 public class NewEntity {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
     // ... fields
 }
 ```
 
-### 3. Create Repository
+### 3. Create Repository (UUID type parameter)
 ```java
 // src/main/java/com/koustav/kaptur/repository/NewEntityRepository.java
 @Repository
-public interface NewEntityRepository extends JpaRepository<NewEntity, Long> {
-    // Custom query methods
+public interface NewEntityRepository extends JpaRepository<NewEntity, UUID> {
+    // Custom query methods with UUID params
 }
 ```
 
@@ -629,14 +693,16 @@ public interface NewEntityRepository extends JpaRepository<NewEntity, Long> {
 // src/main/java/com/koustav/kaptur/dto/NewEntityRequest.java
 @Data
 public class NewEntityRequest {
-    // Request fields with validation
+    @NotBlank(message = "Field is required")
+    private String field;
 }
 
 // src/main/java/com/koustav/kaptur/dto/NewEntityResponse.java
 @Data
 @Builder
 public class NewEntityResponse {
-    // Response fields
+    private UUID id;
+    private String field;
 }
 ```
 
@@ -663,6 +729,7 @@ public class NewEntityService {
 @RequiredArgsConstructor
 public class NewEntityController {
     private final NewEntityService service;
+    private final UserRepository userRepository;
     
     @PostMapping
     public ResponseEntity<NewEntityResponse> create(@Valid @RequestBody NewEntityRequest request) {
@@ -671,7 +738,10 @@ public class NewEntityController {
     }
     
     private User getCurrentUser() {
-        // Get from SecurityContext
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        UUID kptId = UUID.fromString(authentication.getName());
+        return userRepository.findByKptId(kptId)
+            .orElseThrow(() -> new RuntimeException("User not found"));
     }
 }
 ```
@@ -680,14 +750,16 @@ public class NewEntityController {
 
 ## 💡 Best Practices for This Codebase
 
-1. **Always use DTOs** - Never return entities directly
+1. **Always use DTOs** - Never return entities directly. `AuthResponse` uses safe fields (kptId, email, name, imageUrl), not the full User entity.
 2. **Use @Transactional** - For methods that modify multiple entities
 3. **Soft delete** - Use `isDeleted` flag instead of hard delete
-4. **Public IDs** - Use `KPT0000001` for users, `EVNT0000001` for events, UUID for photos
+4. **UUID PKs** - All entities use UUID primary keys. Use `UuidCreator.getTimeOrderedEpoch()` for UUIDv7 where B-tree performance matters.
 5. **Verbose comments** - Explain what and why, not just what
 6. **Educational code** - Step-by-step logic, descriptive variables
 7. **Error handling** - Throw RuntimeException with clear messages
 8. **Security** - Always validate user ownership/membership before modifications
+9. **LAZY fetching** - All `@ManyToOne` relationships use `FetchType.LAZY`. Exclude from `@ToString` and `@EqualsAndHashCode`.
+10. **No composite keys** - All entities use single UUID PKs. Unique constraints are defined via `@UniqueConstraint`.
 
 ---
 
@@ -697,45 +769,51 @@ public class NewEntityController {
 ```java
 private User getCurrentUser() {
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-    String identifier = authentication.getName(); // This is kptId, NOT email!
-    return userRepository.findByKptId(identifier)
-        .orElseThrow(() -> new RuntimeException("User not found"));
+    String kptIdStr = authentication.getName(); // UUID string from JWT subject
+    UUID kptId = UUID.fromString(kptIdStr);
+    return userRepository.findByKptId(kptId)
+        .orElseThrow(() -> new RuntimeException("User not found with ID: " + kptIdStr));
 }
 ```
 
-### Generate Public ID
+### Generate UUID PK
 ```java
-// After saving entity to get auto-generated ID
-String kptId = String.format("KPT%07d", user.getId());
-String evntid = String.format("EVNT%07d", event.getId());
-// Photos use UUID (generated BEFORE save, no double-write needed)
-String photoId = UUID.randomUUID().toString();
+// For UUIDv7 (time-ordered, index-friendly):
+import com.github.f4b6a3.uuid.UuidCreator;
+UUID uuid = UuidCreator.getTimeOrderedEpoch();
+
+// For UUIDv4 (random):
+UUID uuid = UUID.randomUUID();
+
+// Set on entity before save:
+entity.setEvntId(UuidCreator.getTimeOrderedEpoch());
+repository.save(entity);
 ```
 
-### Check Ownership
+### Check Ownership (UUID comparison)
 ```java
-if (!event.getCreatedBy().getId().equals(currentUser.getId())) {
+if (!event.getCreatedBy().getKptId().equals(currentUser.getKptId())) {
     throw new RuntimeException("Not authorized");
 }
 ```
 
-### Validate Event Membership
+### Validate Event Membership (existence = accepted)
 ```java
-List<EventMembers> memberships = eventMembersRepository.findByEventId(eventId);
+List<EventMembersDtl> memberships = eventMembersRepository.findByEventId(eventUuid);
 boolean isMember = memberships.stream()
-    .anyMatch(m -> m.getUser().getId().equals(userId) && m.getStatus() == Status.ACCEPTED);
+    .anyMatch(m -> m.getUser().getKptId().equals(userUuid));
+if (!isMember) {
+    throw new RuntimeException("You must be a member of this event");
+}
+```
+
+### Look Up Role from Master Table
+```java
+UserRoleMst adminRole = userRoleMstRepository.findByRoleCode(Role.ADMIN)
+    .orElseThrow(() -> new RuntimeException("ADMIN role not found"));
 ```
 
 ---
 
-## 📚 Related Documentation
-
-- **README.md** - Getting started guide for developers
-- **Swagger UI** - http://localhost:8080/swagger-ui/index.html
-- **TUS Protocol** - https://tus.io/protocols/resumable-upload
-- **TUSd** - https://github.com/tus/tusd
-
----
-
-**Last Updated:** 2026-06-02 (Photo upload with TUSd resumable support implemented)
-**Scanned By:** AI Agent (Comprehensive Full-Project Scan)
+**Last Updated:** 2026-07-04 (UUID migration complete — all entities use UUID PKs, DTOs aligned, role-based membership with UserRoleMst)
+**Scanned By:** AI Agent (Full Project Alignment Pass)

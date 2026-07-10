@@ -6,10 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+
+import java.util.UUID;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,13 +31,15 @@ import org.springframework.test.util.ReflectionTestUtils;
 import com.koustav.kaptur.dto.AuthResponse;
 import com.koustav.kaptur.dto.LoginRequest;
 import com.koustav.kaptur.dto.RegisterRequest;
+import com.koustav.kaptur.model.CustomUserDetails;
 import com.koustav.kaptur.model.User;
+import com.koustav.kaptur.model.enums.AuthProvider;
 import com.koustav.kaptur.repository.UserRepository;
 import com.koustav.kaptur.security.JwtUtils;
 
 /**
  * Unit tests for AuthService.
- * Tests authentication, registration, and Google login logic using Mockito mocks.
+ * Tests authentication, registration logic using Mockito mocks.
  */
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
@@ -56,15 +59,24 @@ class AuthServiceTest {
     @InjectMocks
     private AuthService authService;
 
+    private User testUser;
+    private UUID testKptId;
+
     @BeforeEach
     void setUp() {
-        // Set the @Value field that would normally be injected by Spring
         ReflectionTestUtils.setField(authService, "googleClientId", "test-client-id");
+
+        testKptId = UUID.fromString("0192f3a4-5678-9abc-def0-123456789abc");
+        testUser = User.builder()
+                .kptId(testKptId)
+                .email("john@example.com")
+                .name("John Doe")
+                .provider(AuthProvider.LOCAL)
+                .build();
     }
 
     @AfterEach
     void tearDown() {
-        // Clear security context after each test to avoid leaks
         SecurityContextHolder.clearContext();
     }
 
@@ -73,15 +85,16 @@ class AuthServiceTest {
     // ==========================================
 
     @Test
-    @DisplayName("authenticateUser - valid credentials returns AuthResponse with token")
+    @DisplayName("authenticateUser - valid credentials returns AuthResponse with token and safe user fields")
     void authenticateUser_success() {
         // Arrange
         LoginRequest loginRequest = new LoginRequest();
         loginRequest.setEmail("john@example.com");
         loginRequest.setPassword("password123");
 
+        CustomUserDetails userDetails = new CustomUserDetails(testUser);
         Authentication mockAuth = new UsernamePasswordAuthenticationToken(
-                "john@example.com", "password123");
+                userDetails, "password123");
 
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(mockAuth);
@@ -94,11 +107,12 @@ class AuthServiceTest {
         assertNotNull(response);
         assertEquals("fake-jwt-token", response.getAccessToken());
         assertEquals("Bearer", response.getTokenType());
+        assertEquals(testKptId, response.getKptId());
+        assertEquals("john@example.com", response.getEmail());
+        assertEquals("John Doe", response.getName());
 
-        // Verify SecurityContext was set
         assertNotNull(SecurityContextHolder.getContext().getAuthentication());
 
-        // Verify interactions
         verify(authenticationManager).authenticate(any(UsernamePasswordAuthenticationToken.class));
         verify(jwtUtils).generateJwtToken(mockAuth);
     }
@@ -108,7 +122,6 @@ class AuthServiceTest {
     void authenticateUser_badCredentials_throws() {
         // Arrange
         LoginRequest loginRequest = new LoginRequest();
-        loginRequest.setEmail("john@example.com");
         loginRequest.setEmail("wrong@example.com");
         loginRequest.setPassword("wrongpassword");
 
@@ -139,13 +152,11 @@ class AuthServiceTest {
         when(userRepository.existsByEmail("newuser@example.com")).thenReturn(false);
         when(passwordEncoder.encode("password123")).thenReturn("$2a$encodedPassword");
 
-        // Simulate the double-save pattern:
-        // First save sets the ID (simulating @GeneratedValue)
-        // Second save returns the user with kptId set
+        // Simulate save: User gets kptId assigned in createUser() via UuidCreator
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
             User user = invocation.getArgument(0);
-            if (user.getId() == null) {
-                user.setId(1L); // Simulate auto-generated ID
+            if (user.getKptId() == null) {
+                user.setKptId(UUID.fromString("0192f3a4-0000-0000-0000-000000000001"));
             }
             return user;
         });
@@ -156,10 +167,9 @@ class AuthServiceTest {
         // Assert
         assertEquals("User registered successfully!", result);
 
-        // Verify: existsByEmail check, password encoding, and two save calls
         verify(userRepository).existsByEmail("newuser@example.com");
         verify(passwordEncoder).encode("password123");
-        verify(userRepository, times(2)).save(any(User.class));
+        verify(userRepository).save(any(User.class));
     }
 
     @Test
@@ -179,7 +189,6 @@ class AuthServiceTest {
 
         assertTrue(exception.getMessage().contains("Email is already in use"));
 
-        // Verify: checked for existing email but never tried to save
         verify(userRepository).existsByEmail("existing@example.com");
         verify(userRepository, never()).save(any(User.class));
     }

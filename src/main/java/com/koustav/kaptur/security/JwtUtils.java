@@ -52,7 +52,7 @@ public class JwtUtils {
     public String generateJwtToken(Authentication authentication) {
         CustomUserDetails userPrincipal = (CustomUserDetails) authentication.getPrincipal();
         log.debug("Generating JWT for authenticated user: {}", userPrincipal.getKptId());
-        return buildJwt(userPrincipal.getKptId());
+        return buildJwt(userPrincipal.getKptId().toString());
     }
 
     /**
@@ -67,7 +67,8 @@ public class JwtUtils {
      * Decodes the token to get the user's email.
      */
     public String getUserNameFromJwtToken(String token) {
-        String kptId = Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(token).getPayload().getSubject();
+        String kptId = Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(token)
+                .getPayload().getSubject();
         log.debug("Extracted kptId from JWT: {}", kptId);
         return kptId;
     }

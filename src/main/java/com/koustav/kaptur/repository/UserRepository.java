@@ -1,6 +1,7 @@
 package com.koustav.kaptur.repository;
 
 import java.util.Optional;
+import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -11,12 +12,12 @@ import com.koustav.kaptur.model.User;
  * Delete) operations on the database without writing SQL. JpaRepository
  * provides methods like save(), findById(), delete(), etc.
  */
-public interface UserRepository extends JpaRepository<User, Long> {
+public interface UserRepository extends JpaRepository<User, UUID> {
 
     // Spring generates the SQL for this automatically based on the method name!
     Optional<User> findByEmail(String email);
 
-    Optional<User> findByKptId(String kptId);
+    Optional<User> findByKptId(UUID kptId);
 
     Optional<User> findByProviderId(String providerId);
 

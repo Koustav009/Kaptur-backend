@@ -2,6 +2,7 @@ package com.koustav.kaptur.dto;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,14 +18,13 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class EventResponse {
-    
-    private Long id;
-    private String evntid;
+
+    private UUID evntId;
     private String eventTitle;
     private String description;
     private LocalDate eventDate;
     private String eventLocation;
-    private Long creatorId;
+    private UUID creatorId;
     private String creatorName;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

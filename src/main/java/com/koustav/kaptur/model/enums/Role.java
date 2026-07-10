@@ -1,7 +1,8 @@
 package com.koustav.kaptur.model.enums;
 
 public enum Role {
-    OWNER,
-    MEMBER,
-    GUEST
+    // System Level Role
+    SUPER_ADMIN, USER,
+    // Event Role
+    ADMIN, PHOTOMAN, GUEST
 }

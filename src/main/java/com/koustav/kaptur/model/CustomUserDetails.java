@@ -2,12 +2,13 @@ package com.koustav.kaptur.model;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.UUID;
 
-import org.checkerframework.checker.index.qual.SearchIndexBottom;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
-import lombok.Setter;
+
 import lombok.Getter;
+import lombok.Setter;
 
 @Getter
 @Setter
@@ -24,7 +25,7 @@ public class CustomUserDetails implements UserDetails {
         this.authorities = new ArrayList<>();
     }
 
-    public String getKptId() {
+    public UUID getKptId() {
         return user.getKptId();
     }
 

@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -70,21 +71,28 @@ class FileControllerTest {
     private CustomUserDetailsService customUserDetailsService;
 
     private User testUser;
+    private UUID testKptId;
+    private UUID testEvntId;
+    private UUID testPhotoId;
 
     @BeforeEach
     void setUp() {
+        testKptId = UUID.fromString("0192f3a4-5678-9abc-def0-123456789abc");
+        testEvntId = UUID.fromString("0192f3b5-6789-abcd-ef01-234567890bcd");
+        testPhotoId = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+
         testUser = User.builder()
-                .id(1L)
-                .kptId("KPT0000001")
+                .kptId(testKptId)
                 .email("john@example.com")
                 .name("John Doe")
                 .provider(AuthProvider.LOCAL)
                 .build();
 
-        when(userRepository.findByKptId("KPT0000001")).thenReturn(Optional.of(testUser));
+        when(userRepository.findByKptId(testKptId)).thenReturn(Optional.of(testUser));
 
         UsernamePasswordAuthenticationToken auth =
-                new UsernamePasswordAuthenticationToken("KPT0000001", null, List.of());
+                new UsernamePasswordAuthenticationToken(
+                        testKptId.toString(), null, List.of());
         SecurityContextHolder.getContext().setAuthentication(auth);
     }
 
@@ -108,19 +116,20 @@ class FileControllerTest {
                 .build();
 
         PhotoUploadResponse response = PhotoUploadResponse.builder()
-                .photoId("550e8400-e29b-41d4-a716-446655440000")
+                .photoId(testPhotoId)
                 .tusdUploadUrl("http://localhost:1080/files/")
                 .build();
 
-        when(fileServices.initUpload(eq("EVNT0000001"), any(PhotoUploadRequest.class), any(User.class)))
+        when(fileServices.initUpload(eq(testEvntId.toString()),
+                any(PhotoUploadRequest.class), any(User.class)))
                 .thenReturn(response);
 
         // Act & Assert
-        mockMvc.perform(post("/events/EVNT0000001/photos/init")
+        mockMvc.perform(post("/events/" + testEvntId + "/photos/init")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.photoId").value("550e8400-e29b-41d4-a716-446655440000"))
+                .andExpect(jsonPath("$.photoId").value(testPhotoId.toString()))
                 .andExpect(jsonPath("$.tusdUploadUrl").value("http://localhost:1080/files/"));
     }
 
@@ -135,7 +144,7 @@ class FileControllerTest {
                 .build();
 
         // Act & Assert
-        mockMvc.perform(post("/events/EVNT0000001/photos/init")
+        mockMvc.perform(post("/events/" + testEvntId + "/photos/init")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
@@ -152,7 +161,7 @@ class FileControllerTest {
                 .build();
 
         // Act & Assert
-        mockMvc.perform(post("/events/EVNT0000001/photos/init")
+        mockMvc.perform(post("/events/" + testEvntId + "/photos/init")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
@@ -162,21 +171,24 @@ class FileControllerTest {
     @DisplayName("POST /events/{eventId}/photos/init - event not found returns 400")
     void initUpload_eventNotFound_returns400() throws Exception {
         // Arrange
+        UUID unknownEvntId = UUID.fromString("0192f3ff-ffff-ffff-ffff-ffffffffffff");
         PhotoUploadRequest request = PhotoUploadRequest.builder()
                 .filename("photo.jpg")
                 .fileType("image/jpeg")
                 .fileSizeInKb(2048L)
                 .build();
 
-        when(fileServices.initUpload(eq("EVNT9999999"), any(PhotoUploadRequest.class), any(User.class)))
-                .thenThrow(new RuntimeException("Event not found with evntid: EVNT9999999"));
+        when(fileServices.initUpload(eq(unknownEvntId.toString()),
+                any(PhotoUploadRequest.class), any(User.class)))
+                .thenThrow(new RuntimeException("Event not found with evntid: " + unknownEvntId));
 
         // Act & Assert
-        mockMvc.perform(post("/events/EVNT9999999/photos/init")
+        mockMvc.perform(post("/events/" + unknownEvntId + "/photos/init")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("Event not found with evntid: EVNT9999999"));
+                .andExpect(jsonPath("$.error").value(
+                        "Event not found with evntid: " + unknownEvntId));
     }
 
     // ==========================================
@@ -189,7 +201,7 @@ class FileControllerTest {
         // Arrange
         TusdHookResponse hookResponse = new TusdHookResponse();
         TusdHookResponse.ChangeFileInfo changeFileInfo = new TusdHookResponse.ChangeFileInfo();
-        changeFileInfo.setID("550e8400-e29b-41d4-a716-446655440000");
+        changeFileInfo.setID(testPhotoId.toString());
         hookResponse.setChangeFileInfo(changeFileInfo);
 
         when(fileServices.handleTusdHook(any(TusdHookRequest.class)))
@@ -203,13 +215,13 @@ class FileControllerTest {
                             "ID": "some-tusd-id",
                             "Size": 2097152,
                             "MetaData": {
-                                "photoId": "550e8400-e29b-41d4-a716-446655440000",
+                                "photoId": "%s",
                                 "filename": "photo.jpg"
                             }
                         }
                     }
                 }
-                """;
+                """.formatted(testPhotoId.toString());
 
         // Act & Assert
         mockMvc.perform(post("/tusd/hooks")
@@ -217,7 +229,7 @@ class FileControllerTest {
                         .content(hookJson))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ChangeFileInfo.ID")
-                        .value("550e8400-e29b-41d4-a716-446655440000"));
+                        .value(testPhotoId.toString()));
     }
 
     @Test
@@ -235,7 +247,7 @@ class FileControllerTest {
                     "Type": "post-finish",
                     "Event": {
                         "Upload": {
-                            "ID": "550e8400-e29b-41d4-a716-446655440000",
+                            "ID": "%s",
                             "Size": 2097152,
                             "Offset": 2097152,
                             "Storage": {
@@ -245,7 +257,7 @@ class FileControllerTest {
                         }
                     }
                 }
-                """;
+                """.formatted(testPhotoId.toString());
 
         // Act & Assert
         mockMvc.perform(post("/tusd/hooks")
@@ -270,11 +282,11 @@ class FileControllerTest {
                     "Type": "post-terminate",
                     "Event": {
                         "Upload": {
-                            "ID": "550e8400-e29b-41d4-a716-446655440000"
+                            "ID": "%s"
                         }
                     }
                 }
-                """;
+                """.formatted(testPhotoId.toString());
 
         // Act & Assert
         mockMvc.perform(post("/tusd/hooks")
@@ -320,46 +332,47 @@ class FileControllerTest {
     void getEventPhotos_success() throws Exception {
         // Arrange
         PhotoResponse photo = PhotoResponse.builder()
-                .id(1L)
-                .photoId("550e8400-e29b-41d4-a716-446655440000")
+                .photoId(testPhotoId)
                 .filename("photo.jpg")
                 .fileType("image/jpeg")
                 .fileSizeInKb(2048L)
                 .photoPath("s3-key")
                 .photoStatus("COMPLETED")
-                .uploadedByKptId("KPT0000001")
+                .uploadedByKptId(testKptId)
                 .uploadedByName("John Doe")
                 .createdAt(LocalDateTime.now())
                 .uploadCompletedAt(LocalDateTime.now())
-                .downloadUrl("http://localhost:1080/files/550e8400-e29b-41d4-a716-446655440000")
+                .downloadUrl("http://localhost:1080/files/" + testPhotoId)
                 .build();
 
-        when(fileServices.getEventPhotos(eq("EVNT0000001"), any(User.class)))
+        when(fileServices.getEventPhotos(eq(testEvntId.toString()), any(User.class)))
                 .thenReturn(List.of(photo));
 
         // Act & Assert
-        mockMvc.perform(get("/events/EVNT0000001/photos"))
+        mockMvc.perform(get("/events/" + testEvntId + "/photos"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].photoId").value("550e8400-e29b-41d4-a716-446655440000"))
+                .andExpect(jsonPath("$[0].photoId").value(testPhotoId.toString()))
                 .andExpect(jsonPath("$[0].filename").value("photo.jpg"))
                 .andExpect(jsonPath("$[0].photoStatus").value("COMPLETED"))
+                .andExpect(jsonPath("$[0].uploadedByKptId").value(testKptId.toString()))
                 .andExpect(jsonPath("$[0].downloadUrl")
-                        .value("http://localhost:1080/files/550e8400-e29b-41d4-a716-446655440000"));
+                        .value("http://localhost:1080/files/" + testPhotoId));
     }
 
     @Test
     @DisplayName("GET /events/{eventId}/photos - non-member gets 400")
     void getEventPhotos_notMember_returns400() throws Exception {
         // Arrange
-        when(fileServices.getEventPhotos(eq("EVNT0000001"), any(User.class)))
-                .thenThrow(new RuntimeException("You must be an accepted member of this event to manage photos"));
+        when(fileServices.getEventPhotos(eq(testEvntId.toString()), any(User.class)))
+                .thenThrow(new RuntimeException(
+                        "You must be a member of this event to manage photos"));
 
         // Act & Assert
-        mockMvc.perform(get("/events/EVNT0000001/photos"))
+        mockMvc.perform(get("/events/" + testEvntId + "/photos"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value(
-                        "You must be an accepted member of this event to manage photos"));
+                        "You must be a member of this event to manage photos"));
     }
 
     // ==========================================
@@ -371,10 +384,12 @@ class FileControllerTest {
     void deletePhoto_success() throws Exception {
         // Arrange
         doNothing().when(fileServices).deletePhoto(
-                eq("EVNT0000001"), eq("550e8400-e29b-41d4-a716-446655440000"), any(User.class));
+                eq(testEvntId.toString()),
+                eq(testPhotoId.toString()),
+                any(User.class));
 
         // Act & Assert
-        mockMvc.perform(delete("/events/EVNT0000001/photos/550e8400-e29b-41d4-a716-446655440000"))
+        mockMvc.perform(delete("/events/" + testEvntId + "/photos/" + testPhotoId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("Photo deleted successfully"));
     }
@@ -385,11 +400,14 @@ class FileControllerTest {
         // Arrange
         doThrow(new RuntimeException("You are not authorized to delete this photo"))
                 .when(fileServices).deletePhoto(
-                        eq("EVNT0000001"), eq("550e8400-e29b-41d4-a716-446655440000"), any(User.class));
+                        eq(testEvntId.toString()),
+                        eq(testPhotoId.toString()),
+                        any(User.class));
 
         // Act & Assert
-        mockMvc.perform(delete("/events/EVNT0000001/photos/550e8400-e29b-41d4-a716-446655440000"))
+        mockMvc.perform(delete("/events/" + testEvntId + "/photos/" + testPhotoId))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("You are not authorized to delete this photo"));
+                .andExpect(jsonPath("$.error").value(
+                        "You are not authorized to delete this photo"));
     }
 }
