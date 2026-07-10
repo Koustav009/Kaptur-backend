@@ -74,7 +74,20 @@ public class EventMembersHistory {
 
     @PrePersist
     protected void onCreate() {
-        deletedAt = LocalDateTime.now();
+        // If these timestamps are null when saving a history record (e.g. not copied manually
+        // from EventMembersDtl), we populate them safely to prevent DB NOT NULL violations.
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+        if (updatedAt == null) {
+            updatedAt = LocalDateTime.now();
+        }
+        if (joinedAt == null) {
+            joinedAt = LocalDateTime.now();
+        }
+        if (deletedAt == null) {
+            deletedAt = LocalDateTime.now();
+        }
         if (isDeleted == null) {
             isDeleted = true;
         }

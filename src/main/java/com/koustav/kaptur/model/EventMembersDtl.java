@@ -24,8 +24,7 @@ import lombok.ToString;
 
 @Entity
 @Table(name = "EVENT_MEMBERS_DTL", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"event_id", "user_id"})
-})
+        @UniqueConstraint(columnNames = { "event_id", "user_id" }) })
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -36,7 +35,7 @@ public class EventMembersDtl {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @JoinColumn(name = "MEMBER_DTL_ID", nullable = false)
+    @Column(name = "MEMBER_DTL_ID", nullable = false)
     private UUID memberDtlId;
 
     @ManyToOne(fetch = FetchType.LAZY)

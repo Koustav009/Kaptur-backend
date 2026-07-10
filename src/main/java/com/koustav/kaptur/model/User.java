@@ -31,10 +31,14 @@ import lombok.NoArgsConstructor;
 public class User {
 
     // Primary key — a UUIDv7 (time-ordered) assigned at creation.
-    // UUIDv7 embeds a Unix timestamp, so it is monotonically increasing and
-    // indexes efficiently in B-tree indexes (unlike random UUIDv4).
+    // NOTE FOR LEARNERS:
+    // 1. We intentionally omit @GeneratedValue here so the service layer manually
+    // assigns a time-ordered UUIDv7
+    // before inserting. UUIDv7 embeds a timestamp, making database B-tree indexing
+    // much faster and cleaner than random UUIDv4.
+
     @Id
-    @Column(name = "kpt_id", nullable = false, updatable = false, columnDefinition = "uuid")
+    @Column(name = "KPT_ID", nullable = false, updatable = false, columnDefinition = "uuid")
     private UUID kptId;
 
     // unique = true means two users cannot have the same email.

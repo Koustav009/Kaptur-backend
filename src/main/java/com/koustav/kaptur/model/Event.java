@@ -39,7 +39,7 @@ public class Event {
     private UUID evntId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by", nullable = false)
+    @JoinColumn(name = "CREATED_BY", nullable = false)
     private User createdBy;
 
     @CreationTimestamp
