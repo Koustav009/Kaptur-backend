@@ -3,6 +3,7 @@ package com.koustav.kaptur.model;
 import java.util.UUID;
 
 import com.koustav.kaptur.model.enums.AuthProvider;
+import com.koustav.kaptur.model.enums.SystemRole;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -62,4 +63,17 @@ public class User {
 
     // URL to the user's profile picture from Google.
     private String imageUrl;
+
+    // The user's system-level role (e.g., USER or SUPER_ADMIN).
+    // NOTE FOR LEARNERS:
+    // By default, every newly registered or logged-in user is assigned the USER role.
+    // When an access token is refreshed, our architecture queries the DB to check and update this role!
+    @Enumerated(EnumType.STRING)
+    @Column(name = "ROLE", length = 50)
+    @Builder.Default
+    private SystemRole role = SystemRole.USER;
+
+    public SystemRole getRole() {
+        return role != null ? role : SystemRole.USER;
+    }
 }

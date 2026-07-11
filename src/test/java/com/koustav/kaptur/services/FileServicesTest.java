@@ -83,51 +83,28 @@ class FileServicesTest {
                 testPhotoId = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
 
                 // Test user (photo uploader and event owner)
-                testUser = User.builder()
-                                .kptId(testKptId)
-                                .email("john@example.com")
-                                .name("John Doe")
-                                .provider(AuthProvider.LOCAL)
-                                .build();
+                testUser = User.builder().kptId(testKptId).email("john@example.com")
+                                .name("John Doe").provider(AuthProvider.LOCAL).build();
 
                 // Another user (not a member)
-                otherUser = User.builder()
-                                .kptId(otherKptId)
-                                .email("jane@example.com")
-                                .name("Jane Doe")
-                                .provider(AuthProvider.LOCAL)
-                                .build();
+                otherUser = User.builder().kptId(otherKptId).email("jane@example.com")
+                                .name("Jane Doe").provider(AuthProvider.LOCAL).build();
 
                 // Test event
-                testEvent = Event.builder()
-                                .evntId(testEvntId)
-                                .eventTitle("Wedding")
-                                .createdBy(testUser)
-                                .isActive(true)
-                                .isDeleted(false)
-                                .eventDate(LocalDate.of(2026, 8, 15))
-                                .build();
+                testEvent = Event.builder().evntId(testEvntId).eventTitle("Wedding")
+                                .createdBy(testUser).isActive(true).isDeleted(false)
+                                .eventDate(LocalDate.of(2026, 8, 15)).build();
 
                 // Test photo in PENDING status
-                testPhoto = EventPhotos.builder()
-                                .photoId(testPhotoId)
-                                .event(testEvent)
-                                .uploadedBy(testUser)
-                                .filename("photo.jpg")
-                                .fileType("image/jpeg")
-                                .fileSizeInKb(2048L)
-                                .photoStatus(PhotoStatus.PENDING)
-                                .isDeleted(false)
-                                .createdAt(LocalDateTime.now())
-                                .build();
+                testPhoto = EventPhotos.builder().photoId(testPhotoId).event(testEvent)
+                                .uploadedBy(testUser).filename("photo.jpg").fileType("image/jpeg")
+                                .fileSizeInKb(2048L).photoStatus(PhotoStatus.PENDING)
+                                .isDeleted(false).createdAt(LocalDateTime.now()).build();
 
                 // Membership for testUser in testEvent
                 // Existence in EventMembersDtl = accepted member (no status field)
-                acceptedMembership = EventMembersDtl.builder()
-                                .event(testEvent)
-                                .user(testUser)
-                                .joinedAt(LocalDateTime.now())
-                                .build();
+                acceptedMembership = EventMembersDtl.builder().event(testEvent).user(testUser)
+                                .joinedAt(LocalDateTime.now()).build();
         }
 
         // ==========================================
@@ -138,22 +115,17 @@ class FileServicesTest {
         @DisplayName("initUpload - valid event and member creates PENDING photo record")
         void initUpload_success() {
                 // Arrange
-                PhotoUploadRequest request = PhotoUploadRequest.builder()
-                                .filename("photo.jpg")
-                                .fileType("image/jpeg")
-                                .fileSizeInKb(2048L)
-                                .build();
+                PhotoUploadRequest request = PhotoUploadRequest.builder().filename("photo.jpg")
+                                .fileType("image/jpeg").fileSizeInKb(2048L).build();
 
-                when(eventRepository.findByEvntId(testEvntId))
-                                .thenReturn(Optional.of(testEvent));
-                when(eventMembersRepository.findByEventId(testEvntId))
+                when(eventRepository.findByEvntId(testEvntId)).thenReturn(Optional.of(testEvent));
+                when(eventMembersRepository.findByEventEvntId(testEvntId))
                                 .thenReturn(List.of(acceptedMembership));
-                when(eventPhotosRepository.save(any(EventPhotos.class)))
-                                .thenReturn(testPhoto);
+                when(eventPhotosRepository.save(any(EventPhotos.class))).thenReturn(testPhoto);
 
                 // Act
-                PhotoUploadResponse response = fileServices.initUpload(
-                                testEvntId.toString(), request, testUser);
+                PhotoUploadResponse response = fileServices.initUpload(testEvntId.toString(),
+                                request, testUser);
 
                 // Assert
                 assertNotNull(response);
@@ -161,7 +133,7 @@ class FileServicesTest {
                 assertEquals("http://localhost:1080/files/", response.getTusdUploadUrl());
 
                 verify(eventRepository).findByEvntId(testEvntId);
-                verify(eventMembersRepository).findByEventId(testEvntId);
+                verify(eventMembersRepository).findByEventEvntId(testEvntId);
                 verify(eventPhotosRepository).save(any(EventPhotos.class));
         }
 
@@ -170,19 +142,14 @@ class FileServicesTest {
         void initUpload_eventNotFound_throws() {
                 // Arrange
                 UUID unknownEvntId = UUID.fromString("0192f3ff-ffff-ffff-ffff-ffffffffffff");
-                PhotoUploadRequest request = PhotoUploadRequest.builder()
-                                .filename("photo.jpg")
-                                .fileType("image/jpeg")
-                                .fileSizeInKb(2048L)
-                                .build();
+                PhotoUploadRequest request = PhotoUploadRequest.builder().filename("photo.jpg")
+                                .fileType("image/jpeg").fileSizeInKb(2048L).build();
 
-                when(eventRepository.findByEvntId(unknownEvntId))
-                                .thenReturn(Optional.empty());
+                when(eventRepository.findByEvntId(unknownEvntId)).thenReturn(Optional.empty());
 
                 // Act & Assert
-                RuntimeException exception = assertThrows(RuntimeException.class,
-                                () -> fileServices.initUpload(unknownEvntId.toString(), request,
-                                                testUser));
+                RuntimeException exception = assertThrows(RuntimeException.class, () -> fileServices
+                                .initUpload(unknownEvntId.toString(), request, testUser));
 
                 assertTrue(exception.getMessage().contains("not found"));
                 verify(eventPhotosRepository, never()).save(any());
@@ -192,22 +159,16 @@ class FileServicesTest {
         @DisplayName("initUpload - user not a member throws RuntimeException")
         void initUpload_notMember_throws() {
                 // Arrange
-                PhotoUploadRequest request = PhotoUploadRequest.builder()
-                                .filename("photo.jpg")
-                                .fileType("image/jpeg")
-                                .fileSizeInKb(2048L)
-                                .build();
+                PhotoUploadRequest request = PhotoUploadRequest.builder().filename("photo.jpg")
+                                .fileType("image/jpeg").fileSizeInKb(2048L).build();
 
-                when(eventRepository.findByEvntId(testEvntId))
-                                .thenReturn(Optional.of(testEvent));
+                when(eventRepository.findByEvntId(testEvntId)).thenReturn(Optional.of(testEvent));
                 // otherUser is not in the membership list
-                when(eventMembersRepository.findByEventId(testEvntId))
-                                .thenReturn(List.of());
+                when(eventMembersRepository.findByEventEvntId(testEvntId)).thenReturn(List.of());
 
                 // Act & Assert
-                RuntimeException exception = assertThrows(RuntimeException.class,
-                                () -> fileServices.initUpload(testEvntId.toString(), request,
-                                                otherUser));
+                RuntimeException exception = assertThrows(RuntimeException.class, () -> fileServices
+                                .initUpload(testEvntId.toString(), request, otherUser));
 
                 assertTrue(exception.getMessage().contains("member"));
                 verify(eventPhotosRepository, never()).save(any());
@@ -225,8 +186,7 @@ class FileServicesTest {
 
                 when(eventPhotosRepository.findByPhotoId(testPhotoId))
                                 .thenReturn(Optional.of(testPhoto));
-                when(eventPhotosRepository.save(any(EventPhotos.class)))
-                                .thenReturn(testPhoto);
+                when(eventPhotosRepository.save(any(EventPhotos.class))).thenReturn(testPhoto);
 
                 // Act
                 TusdHookResponse response = fileServices.handleTusdHook(hookRequest);
@@ -235,8 +195,7 @@ class FileServicesTest {
                 assertNotNull(response);
                 assertNull(response.getRejectUpload());
                 assertNotNull(response.getChangeFileInfo());
-                assertEquals(testPhotoId.toString(),
-                                response.getChangeFileInfo().getID());
+                assertEquals(testPhotoId.toString(), response.getChangeFileInfo().getID());
 
                 // Status should transition to UPLOADING
                 assertEquals(PhotoStatus.UPLOADING, testPhoto.getPhotoStatus());
@@ -316,8 +275,7 @@ class FileServicesTest {
                 testPhoto.setPhotoStatus(PhotoStatus.UPLOADING); // Currently uploading
                 when(eventPhotosRepository.findByPhotoId(testPhotoId))
                                 .thenReturn(Optional.of(testPhoto));
-                when(eventPhotosRepository.save(any(EventPhotos.class)))
-                                .thenReturn(testPhoto);
+                when(eventPhotosRepository.save(any(EventPhotos.class))).thenReturn(testPhoto);
 
                 // Act
                 TusdHookResponse response = fileServices.handleTusdHook(hookRequest);
@@ -368,8 +326,7 @@ class FileServicesTest {
 
                 when(eventPhotosRepository.findByPhotoId(testPhotoId))
                                 .thenReturn(Optional.of(testPhoto));
-                when(eventPhotosRepository.save(any(EventPhotos.class)))
-                                .thenReturn(testPhoto);
+                when(eventPhotosRepository.save(any(EventPhotos.class))).thenReturn(testPhoto);
 
                 // Act
                 TusdHookResponse response = fileServices.handleTusdHook(hookRequest);
@@ -430,30 +387,22 @@ class FileServicesTest {
         @DisplayName("getEventPhotos - member lists photos with download URLs (UUID-based)")
         void getEventPhotos_success() {
                 // Arrange
-                EventPhotos completedPhoto = EventPhotos.builder()
-                                .photoId(testPhotoId)
-                                .event(testEvent)
-                                .uploadedBy(testUser)
-                                .filename("photo.jpg")
-                                .fileType("image/jpeg")
-                                .fileSizeInKb(2048L)
-                                .photoPath("s3-key-abc")
-                                .photoStatus(PhotoStatus.COMPLETED)
-                                .isDeleted(false)
+                EventPhotos completedPhoto = EventPhotos.builder().photoId(testPhotoId)
+                                .event(testEvent).uploadedBy(testUser).filename("photo.jpg")
+                                .fileType("image/jpeg").fileSizeInKb(2048L).photoPath("s3-key-abc")
+                                .photoStatus(PhotoStatus.COMPLETED).isDeleted(false)
                                 .createdAt(LocalDateTime.now())
-                                .uploadCompletedAt(LocalDateTime.now())
-                                .build();
+                                .uploadCompletedAt(LocalDateTime.now()).build();
 
-                when(eventRepository.findByEvntId(testEvntId))
-                                .thenReturn(Optional.of(testEvent));
-                when(eventMembersRepository.findByEventId(testEvntId))
+                when(eventRepository.findByEvntId(testEvntId)).thenReturn(Optional.of(testEvent));
+                when(eventMembersRepository.findByEventEvntId(testEvntId))
                                 .thenReturn(List.of(acceptedMembership));
-                when(eventPhotosRepository.findByEventIdAndIsDeletedFalse(testEvntId))
+                when(eventPhotosRepository.findByEventEvntIdAndIsDeletedFalse(testEvntId))
                                 .thenReturn(List.of(completedPhoto));
 
                 // Act
-                List<PhotoResponse> photos = fileServices.getEventPhotos(
-                                testEvntId.toString(), testUser);
+                List<PhotoResponse> photos = fileServices.getEventPhotos(testEvntId.toString(),
+                                testUser);
 
                 // Assert
                 assertEquals(1, photos.size());
@@ -465,23 +414,20 @@ class FileServicesTest {
                 assertEquals("COMPLETED", photo.getPhotoStatus());
                 assertEquals(testKptId, photo.getUploadedByKptId());
                 assertEquals("John Doe", photo.getUploadedByName());
-                assertEquals("http://localhost:1080/files/" + testPhotoId,
-                                photo.getDownloadUrl());
+                assertEquals("http://localhost:1080/files/" + testPhotoId, photo.getDownloadUrl());
         }
 
         @Test
         @DisplayName("getEventPhotos - non-member throws RuntimeException")
         void getEventPhotos_notMember_throws() {
                 // Arrange
-                when(eventRepository.findByEvntId(testEvntId))
-                                .thenReturn(Optional.of(testEvent));
-                when(eventMembersRepository.findByEventId(testEvntId))
-                                .thenReturn(List.of()); // No members
+                when(eventRepository.findByEvntId(testEvntId)).thenReturn(Optional.of(testEvent));
+                when(eventMembersRepository.findByEventEvntId(testEvntId)).thenReturn(List.of()); // No
+                                                                                                  // members
 
                 // Act & Assert
-                RuntimeException exception = assertThrows(RuntimeException.class,
-                                () -> fileServices.getEventPhotos(testEvntId.toString(),
-                                                otherUser));
+                RuntimeException exception = assertThrows(RuntimeException.class, () -> fileServices
+                                .getEventPhotos(testEvntId.toString(), otherUser));
 
                 assertTrue(exception.getMessage().contains("member"));
         }
@@ -494,12 +440,10 @@ class FileServicesTest {
         @DisplayName("deletePhoto - uploader can delete their own photo")
         void deletePhoto_byUploader_success() {
                 // Arrange
-                when(eventRepository.findByEvntId(testEvntId))
-                                .thenReturn(Optional.of(testEvent));
+                when(eventRepository.findByEvntId(testEvntId)).thenReturn(Optional.of(testEvent));
                 when(eventPhotosRepository.findByPhotoId(testPhotoId))
                                 .thenReturn(Optional.of(testPhoto));
-                when(eventPhotosRepository.save(any(EventPhotos.class)))
-                                .thenReturn(testPhoto);
+                when(eventPhotosRepository.save(any(EventPhotos.class))).thenReturn(testPhoto);
 
                 // Act: testUser uploaded the photo AND owns the event
                 fileServices.deletePhoto(testEvntId.toString(), testPhotoId.toString(), testUser);
@@ -514,23 +458,15 @@ class FileServicesTest {
         void deletePhoto_byEventOwner_success() {
                 // Arrange: otherUser uploaded the photo, but testUser owns the event
                 UUID otherPhotoId = UUID.fromString("660e8400-e29b-41d4-a716-446655440001");
-                EventPhotos otherUserPhoto = EventPhotos.builder()
-                                .photoId(otherPhotoId)
-                                .event(testEvent)
-                                .uploadedBy(otherUser) // Uploaded by otherUser
-                                .filename("other.jpg")
-                                .fileType("image/jpeg")
-                                .fileSizeInKb(1024L)
-                                .photoStatus(PhotoStatus.COMPLETED)
-                                .isDeleted(false)
-                                .build();
+                EventPhotos otherUserPhoto = EventPhotos.builder().photoId(otherPhotoId)
+                                .event(testEvent).uploadedBy(otherUser) // Uploaded by otherUser
+                                .filename("other.jpg").fileType("image/jpeg").fileSizeInKb(1024L)
+                                .photoStatus(PhotoStatus.COMPLETED).isDeleted(false).build();
 
-                when(eventRepository.findByEvntId(testEvntId))
-                                .thenReturn(Optional.of(testEvent));
+                when(eventRepository.findByEvntId(testEvntId)).thenReturn(Optional.of(testEvent));
                 when(eventPhotosRepository.findByPhotoId(otherPhotoId))
                                 .thenReturn(Optional.of(otherUserPhoto));
-                when(eventPhotosRepository.save(any(EventPhotos.class)))
-                                .thenReturn(otherUserPhoto);
+                when(eventPhotosRepository.save(any(EventPhotos.class))).thenReturn(otherUserPhoto);
 
                 // Act: testUser is the event owner, deleting otherUser's photo
                 fileServices.deletePhoto(testEvntId.toString(), otherPhotoId.toString(), testUser);
@@ -544,14 +480,10 @@ class FileServicesTest {
         void deletePhoto_unauthorized_throws() {
                 // Arrange: randomUser is neither the uploader nor the event owner
                 UUID randomKptId = UUID.fromString("0192f3ff-0000-0000-0000-000000000003");
-                User randomUser = User.builder()
-                                .kptId(randomKptId)
-                                .email("random@example.com")
-                                .name("Random User")
-                                .build();
+                User randomUser = User.builder().kptId(randomKptId).email("random@example.com")
+                                .name("Random User").build();
 
-                when(eventRepository.findByEvntId(testEvntId))
-                                .thenReturn(Optional.of(testEvent));
+                when(eventRepository.findByEvntId(testEvntId)).thenReturn(Optional.of(testEvent));
                 when(eventPhotosRepository.findByPhotoId(testPhotoId))
                                 .thenReturn(Optional.of(testPhoto));
 
@@ -570,14 +502,10 @@ class FileServicesTest {
         void deletePhoto_photoNotInEvent_throws() {
                 // Arrange
                 UUID otherEvntId = UUID.fromString("0192f3ff-0000-0000-0000-000000000004");
-                Event otherEvent = Event.builder()
-                                .evntId(otherEvntId)
-                                .eventTitle("Other Event")
-                                .createdBy(testUser)
-                                .build();
+                Event otherEvent = Event.builder().evntId(otherEvntId).eventTitle("Other Event")
+                                .createdBy(testUser).build();
 
-                when(eventRepository.findByEvntId(otherEvntId))
-                                .thenReturn(Optional.of(otherEvent));
+                when(eventRepository.findByEvntId(otherEvntId)).thenReturn(Optional.of(otherEvent));
                 when(eventPhotosRepository.findByPhotoId(testPhotoId))
                                 .thenReturn(Optional.of(testPhoto));
                 // testPhoto belongs to testEvent (evntId = testEvntId),

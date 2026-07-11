@@ -3,7 +3,7 @@ package com.koustav.kaptur.model;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-import com.koustav.kaptur.model.enums.Role;
+import com.koustav.kaptur.model.enums.EventRole;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -34,7 +34,7 @@ public class UserRoleMst {
 
     @Column(nullable = false, unique = true, length = 50)
     @Enumerated(EnumType.STRING)
-    private Role roleCode; // e.g., "ADMIN", "PHOTOMAN", "USER"
+    private EventRole roleCode; // e.g., "ADMIN", "PHOTOMAN", "GUEST"
 
     @Column(nullable = false, length = 100)
     private String roleName; // e.g., "Administrator", "Photographer", "User"
@@ -72,3 +72,4 @@ public class UserRoleMst {
     }
 
 }
+

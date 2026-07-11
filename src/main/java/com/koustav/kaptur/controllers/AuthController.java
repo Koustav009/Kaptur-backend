@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.koustav.kaptur.dto.AuthResponse;
 import com.koustav.kaptur.dto.GoogleLoginRequest;
 import com.koustav.kaptur.dto.LoginRequest;
+import com.koustav.kaptur.dto.RefreshTokenRequest;
 import com.koustav.kaptur.dto.RegisterRequest;
 import com.koustav.kaptur.services.AuthService;
 
@@ -61,6 +62,22 @@ public class AuthController {
     public ResponseEntity<?> googleLogin(@Valid @RequestBody GoogleLoginRequest request) {
         // Exchange Google data for our backend's JWT token.
         AuthResponse response = authService.googleLogin2(request);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * @PostMapping({"/refresh"}) allows the frontend to obtain a brand new Access
+     * Token when their old one expires without making the user type their password
+     * again.
+     * 
+     * NOTE FOR LEARNERS: When this endpoint is called, our backend checks the
+     * database (`check and update the role from db`) to make sure the user's role
+     * and permissions are fully up to date on the newly issued access token!
+     */
+    @PostMapping({ "/refresh" })
+    public ResponseEntity<?> refreshToken(@Valid @RequestBody RefreshTokenRequest request) {
+        log.info("Token refresh attempt received");
+        AuthResponse response = authService.refreshToken(request);
         return ResponseEntity.ok(response);
     }
 

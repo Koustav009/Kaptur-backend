@@ -73,8 +73,7 @@ public class FileServices {
 
         // 2. Look up the event
         Event event = eventRepository.findByEvntId(eventUuid)
-                .orElseThrow(
-                        () -> new RuntimeException("Event not found with evntid: " + evntid));
+                .orElseThrow(() -> new RuntimeException("Event not found with evntid: " + evntid));
 
         // 3. Verify the current user is a member of this event
         // Existence in EventMembersDtl = accepted member
@@ -84,16 +83,10 @@ public class FileServices {
         UUID photoId = UUID.randomUUID();
 
         // 5. Create and save a PENDING photo record (single DB write)
-        EventPhotos photo = EventPhotos.builder()
-                .photoId(photoId)
-                .event(event)
-                .uploadedBy(currentUser)
-                .filename(request.getFilename())
-                .fileType(request.getFileType())
-                .fileSizeInKb(request.getFileSizeInKb())
-                .photoStatus(PhotoStatus.PENDING)
-                .isDeleted(false)
-                .build();
+        EventPhotos photo = EventPhotos.builder().photoId(photoId).event(event)
+                .uploadedBy(currentUser).filename(request.getFilename())
+                .fileType(request.getFileType()).fileSizeInKb(request.getFileSizeInKb())
+                .photoStatus(PhotoStatus.PENDING).isDeleted(false).build();
 
         eventPhotosRepository.save(photo);
 
@@ -101,9 +94,7 @@ public class FileServices {
                 currentUser.getKptId());
 
         // 6. Return the photoId and TUSd base URL
-        return PhotoUploadResponse.builder()
-                .photoId(photoId)
-                .tusdUploadUrl(tusdBaseUrl + "/")
+        return PhotoUploadResponse.builder().photoId(photoId).tusdUploadUrl(tusdBaseUrl + "/")
                 .build();
     }
 
@@ -287,30 +278,24 @@ public class FileServices {
         // 1. Parse event UUID and look up the event
         UUID eventUuid = UUID.fromString(evntid);
         Event event = eventRepository.findByEvntId(eventUuid)
-                .orElseThrow(
-                        () -> new RuntimeException("Event not found with evntid: " + evntid));
+                .orElseThrow(() -> new RuntimeException("Event not found with evntid: " + evntid));
 
         // 2. Verify membership (existence in EventMembersDtl = accepted member)
         validateEventMembership(event.getEvntId(), currentUser.getKptId());
 
         // 3. Fetch non-deleted photos and map to response DTOs
         List<EventPhotos> photos = eventPhotosRepository
-                .findByEventIdAndIsDeletedFalse(event.getEvntId());
+                .findByEventEvntIdAndIsDeletedFalse(event.getEvntId());
 
-        return photos.stream().map(photo -> PhotoResponse.builder()
-                .photoId(photo.getPhotoId())
-                .filename(photo.getFilename())
-                .fileType(photo.getFileType())
-                .fileSizeInKb(photo.getFileSizeInKb())
-                .photoPath(photo.getPhotoPath())
+        return photos.stream().map(photo -> PhotoResponse.builder().photoId(photo.getPhotoId())
+                .filename(photo.getFilename()).fileType(photo.getFileType())
+                .fileSizeInKb(photo.getFileSizeInKb()).photoPath(photo.getPhotoPath())
                 .photoStatus(photo.getPhotoStatus().name())
                 .uploadedByKptId(photo.getUploadedBy().getKptId())
-                .uploadedByName(photo.getUploadedBy().getName())
-                .createdAt(photo.getCreatedAt())
+                .uploadedByName(photo.getUploadedBy().getName()).createdAt(photo.getCreatedAt())
                 .uploadCompletedAt(photo.getUploadCompletedAt())
                 // TUSd serves the file directly: GET /files/{photoId}
-                .downloadUrl(tusdBaseUrl + "/" + photo.getPhotoId())
-                .build())
+                .downloadUrl(tusdBaseUrl + "/" + photo.getPhotoId()).build())
                 .collect(Collectors.toList());
     }
 
@@ -332,13 +317,11 @@ public class FileServices {
 
         // 2. Look up the event
         Event event = eventRepository.findByEvntId(eventUuid)
-                .orElseThrow(
-                        () -> new RuntimeException("Event not found with evntid: " + evntid));
+                .orElseThrow(() -> new RuntimeException("Event not found with evntid: " + evntid));
 
         // 3. Look up the photo
         EventPhotos photo = eventPhotosRepository.findByPhotoId(photoUuid)
-                .orElseThrow(
-                        () -> new RuntimeException("Photo not found with ID: " + photoId));
+                .orElseThrow(() -> new RuntimeException("Photo not found with ID: " + photoId));
 
         // 4. Verify the photo belongs to the specified event
         if (!photo.getEvent().getEvntId().equals(event.getEvntId())) {
@@ -346,10 +329,8 @@ public class FileServices {
         }
 
         // 5. Permission check: must be the uploader OR the event creator
-        boolean isUploader = photo.getUploadedBy().getKptId()
-                .equals(currentUser.getKptId());
-        boolean isEventOwner = event.getCreatedBy().getKptId()
-                .equals(currentUser.getKptId());
+        boolean isUploader = photo.getUploadedBy().getKptId().equals(currentUser.getKptId());
+        boolean isEventOwner = event.getCreatedBy().getKptId().equals(currentUser.getKptId());
 
         if (!isUploader && !isEventOwner) {
             throw new RuntimeException("You are not authorized to delete this photo");
@@ -373,14 +354,13 @@ public class FileServices {
      * @param userUuid  The user's UUID primary key (kptId)
      */
     private void validateEventMembership(UUID eventUuid, UUID userUuid) {
-        List<EventMembersDtl> memberships = eventMembersRepository.findByEventId(eventUuid);
+        List<EventMembersDtl> memberships = eventMembersRepository.findByEventEvntId(eventUuid);
 
         boolean isMember = memberships.stream()
                 .anyMatch(m -> m.getUser().getKptId().equals(userUuid));
 
         if (!isMember) {
-            throw new RuntimeException(
-                    "You must be a member of this event to manage photos");
+            throw new RuntimeException("You must be a member of this event to manage photos");
         }
     }
 }

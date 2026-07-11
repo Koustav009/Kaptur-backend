@@ -21,10 +21,13 @@ import com.google.api.client.json.gson.GsonFactory;
 import com.koustav.kaptur.dto.AuthResponse;
 import com.koustav.kaptur.dto.GoogleLoginRequest;
 import com.koustav.kaptur.dto.LoginRequest;
+import com.koustav.kaptur.dto.RefreshTokenRequest;
 import com.koustav.kaptur.dto.RegisterRequest;
 import com.koustav.kaptur.model.CustomUserDetails;
+import com.koustav.kaptur.model.RefreshToken;
 import com.koustav.kaptur.model.User;
 import com.koustav.kaptur.model.enums.AuthProvider;
+import com.koustav.kaptur.model.enums.SystemRole;
 import com.koustav.kaptur.repository.UserRepository;
 import com.koustav.kaptur.security.JwtUtils;
 
@@ -40,6 +43,7 @@ public class AuthService {
     private final UserRepository userRepository; // Access to DB
     private final PasswordEncoder passwordEncoder; // Encrypts passwords
     private final JwtUtils jwtUtils; // Generates tokens
+    private final RefreshTokenService refreshTokenService; // Manages refresh tokens
 
     // Your Google Client ID from Google Cloud Console.
     // This MUST match the clientId used in your Flutter app.
@@ -77,19 +81,23 @@ public class AuthService {
             // 2. If valid, we store the authentication info in the Security Context.
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
-            // 3. We generate a JWT token so the user stays logged in for their next
-            // requests.
+            // 3. We generate a short-lived access token and a long-lived refresh token.
             String token = jwtUtils.generateJwtToken(authentication);
             CustomUserDetails customUserDetails = (CustomUserDetails) authentication.getPrincipal();
             User user = customUserDetails.getUser();
 
+            RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getKptId());
+            String roleStr = user.getRole() != null ? user.getRole().name() : SystemRole.USER.name();
+
             log.info("User authenticated successfully: {}", loginRequest.getEmail());
             return AuthResponse.builder()
                     .accessToken(token)
+                    .refreshToken(refreshToken.getToken())
                     .kptId(user.getKptId())
                     .email(user.getEmail())
                     .name(user.getName())
                     .imageUrl(user.getImageUrl())
+                    .role(roleStr)
                     .build();
         } catch (Exception e) {
             log.error("Authentication failed for email: {}", loginRequest.getEmail(), e);
@@ -166,7 +174,7 @@ public class AuthService {
             user = userOptional.get();
             user.setName(name);
             user.setImageUrl(pictureUrl);
-            userRepository.save(user);
+            user = userRepository.save(user);
         } else {
             // First time login — create a new user
             log.info("Creating new Google user with email: {}", email);
@@ -176,16 +184,70 @@ public class AuthService {
         }
 
         // ---------------------------------------------------------------
-        // STEP 5: Issue your own app's JWT and return it to Flutter.
+        // STEP 5: Issue your own app's access token and refresh token and return to Flutter.
         // ---------------------------------------------------------------
-        String token = jwtUtils.generateTokenFromKptId(user.getKptId().toString());
+        String token = jwtUtils.generateTokenFromUser(user);
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getKptId());
+        String roleStr = user.getRole() != null ? user.getRole().name() : SystemRole.USER.name();
+
         log.info("Google login successful for user: {}", email);
         return AuthResponse.builder()
                 .accessToken(token)
+                .refreshToken(refreshToken.getToken())
                 .kptId(user.getKptId())
                 .email(user.getEmail())
                 .name(user.getName())
                 .imageUrl(user.getImageUrl())
+                .role(roleStr)
+                .build();
+    }
+
+    /**
+     * Handles refreshing an Access Token using a valid Refresh Token.
+     * 
+     * EDUCATIONAL NOTE FOR LEARNERS:
+     * When using a refresh token to get a new access token, we perform a live database lookup
+     * (`check and update the role from db`).
+     * 
+     * Why check the DB here?
+     * Because while the user was holding their old access token, an admin might have promoted them
+     * to `SUPER_ADMIN` or demoted them. By checking the database right here when issuing the new
+     * access token, any role changes immediately take effect without requiring the user to log out and back in!
+     */
+    public AuthResponse refreshToken(RefreshTokenRequest request) {
+        String requestRefreshToken = request.getRefreshToken();
+        log.info("Processing refresh token request");
+
+        // 1. Look up the refresh token in the database
+        RefreshToken refreshToken = refreshTokenService.findByToken(requestRefreshToken)
+                .orElseThrow(() -> new RuntimeException("Refresh token is not in database! Please login again."));
+
+        // 2. Verify that the refresh token hasn't expired
+        refreshTokenService.verifyExpiration(refreshToken);
+
+        // 3. Fetch the latest User entity from the database (`check and update the role from db`)
+        UUID kptId = refreshToken.getUser().getKptId();
+        User user = userRepository.findByKptId(kptId)
+                .orElseThrow(() -> new RuntimeException("User not found with ID: " + kptId));
+
+        // 4. Check/verify the user's latest role from the database entity
+        SystemRole currentDbRole = user.getRole();
+        log.info("Checked role from DB for user kptId {}: {}", kptId, currentDbRole);
+
+        // 5. Generate a brand new Access Token embedding the updated role from DB
+        String newAccessToken = jwtUtils.generateTokenFromUser(user);
+
+        log.info("Successfully generated new access token using refresh token for user kptId: {}", kptId);
+
+        // 6. Return the updated token details to the client
+        return AuthResponse.builder()
+                .accessToken(newAccessToken)
+                .refreshToken(refreshToken.getToken())
+                .kptId(user.getKptId())
+                .email(user.getEmail())
+                .name(user.getName())
+                .imageUrl(user.getImageUrl())
+                .role(currentDbRole.name())
                 .build();
     }
 
