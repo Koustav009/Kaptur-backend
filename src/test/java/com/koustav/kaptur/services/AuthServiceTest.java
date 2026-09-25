@@ -32,6 +32,7 @@ import com.koustav.kaptur.dto.AuthResponse;
 import com.koustav.kaptur.dto.LoginRequest;
 import com.koustav.kaptur.dto.RegisterRequest;
 import com.koustav.kaptur.model.CustomUserDetails;
+import com.koustav.kaptur.model.RefreshToken;
 import com.koustav.kaptur.model.User;
 import com.koustav.kaptur.model.enums.AuthProvider;
 import com.koustav.kaptur.repository.UserRepository;
@@ -55,6 +56,9 @@ class AuthServiceTest {
 
     @Mock
     private JwtUtils jwtUtils;
+
+    @Mock
+    private RefreshTokenService refreshTokenService;
 
     @InjectMocks
     private AuthService authService;
@@ -99,6 +103,8 @@ class AuthServiceTest {
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(mockAuth);
         when(jwtUtils.generateJwtToken(mockAuth)).thenReturn("fake-jwt-token");
+        when(refreshTokenService.createRefreshToken(testKptId))
+                .thenReturn(RefreshToken.builder().token("fake-refresh-token").build());
 
         // Act
         AuthResponse response = authService.authenticateUser(loginRequest);
@@ -106,6 +112,7 @@ class AuthServiceTest {
         // Assert
         assertNotNull(response);
         assertEquals("fake-jwt-token", response.getAccessToken());
+        assertEquals("fake-refresh-token", response.getRefreshToken());
         assertEquals("Bearer", response.getTokenType());
         assertEquals(testKptId, response.getKptId());
         assertEquals("john@example.com", response.getEmail());

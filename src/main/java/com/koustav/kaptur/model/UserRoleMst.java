@@ -3,12 +3,8 @@ package com.koustav.kaptur.model;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-import com.koustav.kaptur.model.enums.EventRole;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -32,9 +28,11 @@ public class UserRoleMst {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID roleId;
 
+    // role_code is stored as a plain String because USER_ROLE_MST holds roles from
+    // BOTH enums: SystemRole (SUPER_ADMIN, USER) and EventRole (ADMIN, PHOTOMAN, GUEST).
+    // Java has a single type per field, so we can't use one enum for both groups here.
     @Column(nullable = false, unique = true, length = 50)
-    @Enumerated(EnumType.STRING)
-    private EventRole roleCode; // e.g., "ADMIN", "PHOTOMAN", "GUEST"
+    private String roleCode; // "SUPER_ADMIN", "USER", "ADMIN", "PHOTOMAN", "GUEST"
 
     @Column(nullable = false, length = 100)
     private String roleName; // e.g., "Administrator", "Photographer", "User"

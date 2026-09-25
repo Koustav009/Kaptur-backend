@@ -70,7 +70,7 @@ class EventServiceTest {
 
                 adminRole = new UserRoleMst();
                 adminRole.setRoleId(adminRoleId);
-                adminRole.setRoleCode(EventRole.ADMIN);
+                adminRole.setRoleCode(EventRole.ADMIN.name());
                 adminRole.setRoleName("Administrator");
 
                 // Create a reusable test user (UUID PK only, no Long id)
@@ -99,7 +99,7 @@ class EventServiceTest {
                                 .eventDate(LocalDate.of(2026, 8, 15)).eventLocation("Kolkata")
                                 .build();
 
-                when(userRoleMstRepository.findByRoleCode(EventRole.ADMIN))
+                when(userRoleMstRepository.findByRoleCode(EventRole.ADMIN.name()))
                                 .thenReturn(Optional.of(adminRole));
                 when(eventRepository.save(any(Event.class))).thenReturn(testEvent);
                 when(eventMembersRepository.save(any(EventMembersDtl.class))).thenReturn(null);
@@ -117,7 +117,7 @@ class EventServiceTest {
                 assertEquals("John Doe", response.getCreatorName());
 
                 // Verify: event saved once, membership saved once, role lookup performed
-                verify(userRoleMstRepository).findByRoleCode(EventRole.ADMIN);
+                verify(userRoleMstRepository).findByRoleCode(EventRole.ADMIN.name());
                 verify(eventRepository).save(any(Event.class));
                 verify(eventMembersRepository).save(any(EventMembersDtl.class));
         }
@@ -129,7 +129,7 @@ class EventServiceTest {
                 EventRequest request = EventRequest.builder().eventTitle("Wedding")
                                 .eventDate(LocalDate.of(2026, 8, 15)).build();
 
-                when(userRoleMstRepository.findByRoleCode(EventRole.ADMIN))
+                when(userRoleMstRepository.findByRoleCode(EventRole.ADMIN.name()))
                                 .thenReturn(Optional.empty());
 
                 // Act & Assert
@@ -139,7 +139,7 @@ class EventServiceTest {
                 assertTrue(exception.getMessage().contains("ADMIN role not found"));
 
                 // Verify: role lookup happened, but event was never saved
-                verify(userRoleMstRepository).findByRoleCode(EventRole.ADMIN);
+                verify(userRoleMstRepository).findByRoleCode(EventRole.ADMIN.name());
                 verify(eventRepository, never()).save(any(Event.class));
         }
 

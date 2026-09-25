@@ -54,7 +54,7 @@ public class EventService {
                                 currentUser.getKptId());
 
                 // 1. Look up the ADMIN role from the role master table
-                UserRoleMst adminRole = userRoleMstRepository.findByRoleCode(EventRole.ADMIN)
+                UserRoleMst adminRole = userRoleMstRepository.findByRoleCode(EventRole.ADMIN.name())
                                 .orElseThrow(() -> new RuntimeException(
                                                 "ADMIN role not found in USER_ROLE_MST. Please seed the role data."));
 

@@ -7,7 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import com.koustav.kaptur.model.UserRoleMst;
-import com.koustav.kaptur.model.enums.EventRole;
 
 /**
  * Repository for UserRoleMst entity.
@@ -17,8 +16,9 @@ import com.koustav.kaptur.model.enums.EventRole;
 public interface UserRoleMstRepository extends JpaRepository<UserRoleMst, UUID> {
 
     /**
-     * Finds a role master record by its role code enum value.
+     * Finds a role master record by its role code (e.g. "SUPER_ADMIN", "ADMIN").
+     * role_code is a String because the table holds both SystemRole and EventRole values.
      * Used when assigning roles to event members.
      */
-    Optional<UserRoleMst> findByRoleCode(EventRole roleCode);
+    Optional<UserRoleMst> findByRoleCode(String roleCode);
 }
