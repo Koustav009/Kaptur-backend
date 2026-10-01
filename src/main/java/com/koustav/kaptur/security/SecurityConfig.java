@@ -6,8 +6,10 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -68,12 +70,18 @@ public class SecurityConfig {
         // 1. Disable CSRF (not needed for JWT-based REST APIs).
         http.csrf(csrf -> csrf.disable())
 
+                // 1b. Enable CORS using the CorsConfigurationSource bean from CorsConfig.
+                // This runs at the security-filter level so preflight OPTIONS requests are
+                // answered (with CORS headers) before the authentication rules below.
+                .cors(Customizer.withDefaults())
+
                 // 2. Set Session policy to STATELESS (don't use cookies, use tokens).
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 // 3. Set public and private URLs.
-                .authorizeHttpRequests(auth -> auth.requestMatchers("/auth/**").permitAll() // Anyone can login and
-                                                                                            // register.
+                .authorizeHttpRequests(auth -> auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // Preflight never 401s.
+                        .requestMatchers("/auth/**").permitAll() // Anyone can login and
+                                                                 // register.
                         .requestMatchers("/oauth2/**").permitAll() // Google OAuth path is public.
                         .requestMatchers("/v3/api-docs/**").permitAll() // Swagger docs
                         .requestMatchers("/swagger-ui/**").permitAll() // Swagger UI
