@@ -1,22 +1,17 @@
 # 🤖 AI Agent Project Context Guide (Kaptur-backend)
 
-Welcome, fellow AI Agent! This document is your **comprehensive source of truth** for the **Kaptur Backend** project. Before writing any code, read this guide to understand the project's architecture, conventions, and current state.
+Spring Boot REST API for a photo/event management app. This is the source of truth for the project's architecture, conventions, and current state — read it before writing code. (Code examples are intentionally omitted; see the source and `bruno/Kaptur/` for concrete patterns.)
 
 ---
 
 ## 📌 Project Overview
-
-**Kaptur Backend** is a Spring Boot REST API for a photo management application (Kaptur Backend). It handles user authentication, event management, and photo uploads with resumable upload support via TUS protocol.
-
-**Key Characteristics:**
-- **Purpose:** Photo event management platform where users create events and manage photos
-- **Target Audience:** Junior developers in learning phase (code must be verbose and educational)
-- **Current State:** Authentication, event CRUD, and photo upload with resumable TUSd integration all implemented.
+- **Purpose:** photo event management platform — users create events and manage photos.
+- **Audience:** junior developers in a learning phase — code must be verbose and educational.
+- **State:** auth, event CRUD, and resumable photo upload (TUSd) all implemented.
 
 ---
 
 ## 🛠️ Technology Stack
-
 | Component | Technology | Version |
 |-----------|-----------|---------|
 | **Language** | Java | 21 (LTS) |
@@ -34,173 +29,48 @@ Welcome, fellow AI Agent! This document is your **comprehensive source of truth*
 ---
 
 ## 📐 Architecture & Code Mandates
-
-### Layered Architecture (Strict Separation)
-```
-controllers/ → services/ → repository/ → database
-     ↑              ↑            ↑
-   (Waiter)       (Chef)      (Pantry)
-```
+**Strict layered separation:** `controllers/ → services/ → repository/ → database` (never skip layers).
 
 ### Critical Rules
 1. **DTO Usage:** NEVER expose JPA entities in controllers. Always use DTOs for request/response.
-2. **Lombok Conventions:**
-   - `@RequiredArgsConstructor` for constructor injection
-   - `@Data` for DTOs
-   - `@Getter`/`@Setter` for entities (avoid `@Data` to prevent circular reference issues)
-3. **Validation:** Use Jakarta Validation annotations (`@NotBlank`, `@NotNull`, `@Email`, `@Valid`)
-4. **Verbose Comments:** Every class and method must have educational comments explaining what and why
-5. **Code Clarity:** Prioritize readable code over clever one-liners
+2. **Lombok Conventions:** `@RequiredArgsConstructor` for constructor injection; `@Data` for DTOs; `@Getter`/`@Setter` for entities (avoid `@Data` on entities to prevent circular-reference issues).
+3. **Validation:** Use Jakarta Validation annotations (`@NotBlank`, `@NotNull`, `@Email`, `@Valid`).
+4. **Verbose Comments:** Every class and method must have educational comments explaining what and why.
+5. **Code Clarity:** Prioritize readable code over clever one-liners.
 
 ---
 
 ## 📂 Project Structure
-
 ```
 com.koustav.kaptur/
-├── KapturApplication.java          # Entry point
-├── controllers/                    # REST endpoints
-│   ├── AuthController.java         # /auth/* endpoints
-│   ├── EventController.java        # /events/* endpoints
-│   ├── FileController.java         # Photo upload lifecycle: init, list, delete + TUSd hooks
-│   └── GlobalExceptionHandler.java # Global error handling
-├── dto/                            # Data Transfer Objects
-│   ├── AuthResponse.java           # JWT + safe user profile (no entity leak)
-│   ├── EventRequest.java           # Event create/update request
-│   ├── EventResponse.java          # Event response (UUID-based)
-│   ├── GoogleLoginRequest.java     # Google OAuth request
-│   ├── LoginRequest.java           # Login request (with validation)
-│   ├── PhotoUploadRequest.java     # Init upload: filename, fileType, fileSizeInKb
-│   ├── PhotoUploadResponse.java    # Init response: photoId (UUID), tusdUploadUrl
-│   ├── PhotoResponse.java          # Photo listing: photoId (UUID), metadata + downloadUrl
-│   └── RegisterRequest.java        # Registration request (with validation)
-├── model/                          # JPA Entities
-│   ├── User.java                   # User entity (UUID kptId PK)
-│   ├── Event.java                  # Event entity (UUID evntId PK)
-│   ├── EventMembersDtl.java        # Event membership (UUID memberDtlId PK)
-│   ├── EventMembersHistory.java    # Membership history/archive (soft-deleted records)
-│   ├── EventPhotos.java            # Photo metadata entity (UUID photoId PK)
-│   ├── UserRoleMst.java            # Role master data (UUID roleId PK)
-│   ├── CustomUserDetails.java      # Spring Security user adapter
-│   ├── TusdHookRequest.java        # TUS upload hook request (from TUSd server)
-│   ├── TusdHookResponse.java       # TUS hook response (with ChangeFileInfo for ID override)
-│   └── enums/
-│       ├── AuthProvider.java       # LOCAL, GOOGLE
-│       ├── PhotoStatus.java        # PENDING, UPLOADING, COMPLETED, FAILED
-│       ├── Role.java               # SUPER_ADMIN, USER, ADMIN, PHOTOMAN, GUEST
-│       └── Status.java             # PENDING, ACCEPTED, REJECTED, BLOCKED
-├── repository/                     # Data access layer
-│   ├── UserRepository.java         # User queries (UUID-based)
-│   ├── EventRepository.java        # Event queries (UUID-based)
-│   ├── EventMembersRepository.java # Membership queries (UUID-based)
-│   ├── EventPhotosRepository.java  # Photo queries (UUID-based)
-│   └── UserRoleMstRepository.java  # Role master queries
-├── security/                       # Security layer
-│   ├── SecurityConfig.java         # Main security configuration
-│   ├── AuthTokenFilter.java        # JWT filter (runs on every request)
-│   ├── JwtUtils.java               # JWT generation/validation
-│   ├── CustomUserDetailsService.java # User lookup for auth
-│   └── OAuth2AuthenticationSuccessHandler.java # (COMMENTED OUT - not used)
-└── services/                       # Business logic
-    ├── AuthService.java            # Authentication logic
-    ├── EventService.java           # Event CRUD logic
-    └── FileServices.java           # Photo upload lifecycle, TUSd hook handling
+├── controllers/   AuthController, EventController, FileController, GlobalExceptionHandler
+├── dto/           AuthResponse, LoginRequest, RegisterRequest, GoogleLoginRequest,
+│                  EventRequest/Response, PhotoUploadRequest/Response, PhotoResponse
+├── model/         User, Event, EventMembersDtl, EventMembersHistory, EventPhotos, UserRoleMst,
+│                  CustomUserDetails, TusdHookRequest/Response, enums/ (AuthProvider, PhotoStatus, Role, Status)
+├── repository/    User, Event, EventMembers, EventPhotos, UserRoleMst repositories
+├── security/      SecurityConfig, AuthTokenFilter, JwtUtils, CustomUserDetailsService,
+│                  OAuth2AuthenticationSuccessHandler (commented out / unused)
+└── services/      AuthService, EventService, FileServices
 ```
 
 ---
 
 ## 🔐 Authentication System
+**JWT-based, stateless.** Login (`/auth/login` or `/auth/google`) returns a JWT + safe user profile (no password). The client sends `Authorization: Bearer <token>`; `AuthTokenFilter` validates it on every request and sets the `kptId` (UUID string from the subject claim) as the SecurityContext principal name. Controllers resolve the caller via `getCurrentUser()`, which does `UUID.fromString(authentication.getName())` → `userRepository.findByKptId(uuid)`.
 
-### How It Works
-
-**JWT-Based Stateless Authentication:**
-1. User logs in via `/auth/login` or `/auth/google`
-2. Server validates credentials and returns JWT token + safe user profile (no password!)
-3. Client sends JWT in `Authorization: Bearer <token>` header
-4. `AuthTokenFilter` validates token on every request — extracts kptId UUID string from subject claim
-5. Security context is populated with the kptId as the principal name
-6. Controllers call `getCurrentUser()` which parses the kptId string → UUID, then loads the full User
-
-### Google Native Login Flow (Used for Flutter)
-```
-Flutter App → POST /auth/google (with Google ID Token)
-    ↓
-AuthService.googleLogin2()
-    ↓
-GoogleIdTokenVerifier verifies token with Google
-    ↓
-Extract email, name, picture, googleId from payload
-    ↓
-Find or create user in database
-    ↓
-Generate JWT with kptId.toString() as subject
-    ↓
-Return AuthResponse with JWT + safe user fields (kptId, email, name, imageUrl)
-```
+**Google native login (used by Flutter):** the app posts a Google ID token to `/auth/google`; `AuthService.googleLogin2()` verifies it with `GoogleIdTokenVerifier`, extracts email/name/picture/googleId, finds or creates the user, and issues our JWT.
 
 ### Public ID Formats — All UUIDs
-- **User kptId:** UUID v7 (time-ordered), e.g. `0192f3a4-5678-9abc-def0-123456789abc`
-- **Event evntId:** UUID v7 (time-ordered), e.g. `0192f3b5-6789-abcd-ef01-234567890bcd`
-- **Photo photoId:** UUID v4, e.g. `550e8400-e29b-41d4-a716-446655440000`
-- **Role roleId:** UUID, auto-generated by Hibernate
-- **Membership memberDtlId:** UUID, auto-generated by Hibernate
-
-> **Breaking change from v1:** Old format used `KPT0000001` / `EVNT0000001` string prefixes. Now all IDs are standard UUIDs. UUID v7 (time-ordered) is used for entities that benefit from B-tree index locality (User, Event). UUID v4 is used where randomness is preferred (photos).
-
-### ✅ Authentication Flow
-
-```
-JWT Generation (JwtUtils.buildJwt()) → Stores kptId.toString() as subject claim
-    ↓
-JWT Extraction (AuthTokenFilter) → Extracts subject → sets as principal name in SecurityContext
-    ↓
-Controller (getCurrentUser()) → UUID.fromString(authentication.getName()) → findByKptId(uuid)
-```
-
-**Current `getCurrentUser()` pattern:**
-```java
-private User getCurrentUser() {
-    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-    String kptIdStr = authentication.getName(); // Returns kptId UUID string from JWT
-    UUID kptId = UUID.fromString(kptIdStr);
-    return userRepository.findByKptId(kptId)
-        .orElseThrow(() -> new RuntimeException("User not found with ID: " + kptId));
-}
-```
+- **User kptId:** UUIDv7 (time-ordered) · **Event evntId:** UUIDv7 · **Photo photoId:** UUIDv4 · **roleId / memberDtlId:** UUID (Hibernate-generated).
+- **Breaking change from v1:** old `KPT0000001` / `EVNT0000001` string prefixes are gone — all IDs are standard UUIDs. UUIDv7 is used where B-tree index locality matters (User, Event); UUIDv4 where randomness is preferred (photos).
 
 ---
 
 ## 🗄️ Database Schema
-
-### PostgreSQL Configuration
-- **Database:** `kaptur`
-- **Schema:** `kaptur_schema`
-- **DDL Mode:** `spring.jpa.hibernate.ddl-auto=update` (auto-creates/updates tables)
-- **Connection:** `jdbc:postgresql://localhost:5432/kaptur?currentSchema=kaptur_schema`
-
-### Entity Relationships
-
-```
-User (1) ←─────────────── (N) Event
-  │                              │
-  │                              ├────────── (N) EventPhotos
-  │                              │               │
-  │                              │               └── uploadedBy → User
-  │                              │
-  │                              ├────────── (N) EventMembersDtl
-  │                              │               │
-  │                              │               └── roleMst → UserRoleMst
-  │                              │
-  │                              └────────── (N) EventMembersHistory
-  │                                              │
-  │                                              └── roleMst → UserRoleMst
-  │
-  └─────────── (N) EventMembersDtl (N) ───────────┘
-  └─────────── (N) EventMembersHistory (N) ───────┘
-
-UserRoleMst (1) ── (N) EventMembersDtl
-UserRoleMst (1) ── (N) EventMembersHistory
-```
+- **Database:** `kaptur` · **Schema:** `kaptur_schema` · **DDL:** `spring.jpa.hibernate.ddl-auto=update` · **URL:** `jdbc:postgresql://localhost:5432/kaptur?currentSchema=kaptur_schema`.
+- **Relationships:** `User 1—N Event`; `Event 1—N EventPhotos` (`uploadedBy → User`); `Event 1—N EventMembersDtl` and `Event 1—N EventMembersHistory` (each `roleMst → UserRoleMst`); `UserRoleMst 1—N` both membership tables.
+- **Important:** A record in EventMembersDtl = an accepted member. There is no separate invitation/status field. The `Status` enum exists but is not currently used.
 
 ### Key Entities
 
@@ -241,8 +111,6 @@ UserRoleMst (1) ── (N) EventMembersHistory
 | `remarks` | String | Nullable, max 255 chars |
 | `createdAt` | LocalDateTime | Set via @PrePersist |
 | `updatedAt` | LocalDateTime | Set via @PrePersist + @PreUpdate |
-
-> **Important:** A record in EventMembersDtl = accepted member. There is no separate invitation/status field. The `Status` enum exists but is not currently used.
 
 **EventMembersHistory** — Table: `EVENT_MEMBERS_HISTORY`
 | Field | Type | Notes |
@@ -321,147 +189,23 @@ UserRoleMst (1) ── (N) EventMembersHistory
 | POST | `/tusd/hooks` | TUSd lifecycle hooks | No |
 
 ### Public Paths (No Auth Required)
-- `/auth/**`
-- `/oauth2/**`
-- `/v3/api-docs/**`
-- `/swagger-ui/**`
-- `/swagger-ui.html`
-- `/tusd/**`
+`/auth/**` · `/oauth2/**` · `/v3/api-docs/**` · `/swagger-ui/**` · `/swagger-ui.html` · `/tusd/**`
 
 ---
 
 ## 📤 Photo Upload — Complete Flow & Client Integration Guide
+The Spring Boot server does **NOT** handle file bytes. A separate [TUSd Go server](https://github.com/tus/tusd) (`localhost:1080`, Docker) does all file I/O and stores to S3. Spring Boot manages only **photo metadata** and the **upload lifecycle** via TUSd hooks.
 
-### Architecture Overview
-
-The Spring Boot server does **NOT** handle file bytes. A separate [TUSd Go server](https://github.com/tus/tusd) (running at `localhost:1080` in Docker) manages all file I/O and stores files directly to S3. Spring Boot only manages **photo metadata** and the **upload lifecycle** via TUSd hooks.
-
-```
-                      ┌─────────────────┐
-                      │  Flutter Client  │
-                      └───┬──────┬──────┘
-                          │      │
-              ┌───────────┘      └──────────────┐
-              ▼                                 ▼
-   ┌────────────────────┐           ┌────────────────────┐
-   │  Spring Boot :8080 │           │  TUSd Go :1080     │
-   │  (metadata mgmt)   │◀──hooks──│  (file I/O → S3)   │
-   └────────────────────┘           └────────────────────┘
-```
-
-### Upload Sequence (Client Must Implement)
-
-```
-STEP 1: Initialize Upload
-─────────────────────────
-POST /events/{evntId}/photos/init
-Authorization: Bearer <jwt>
-Content-Type: application/json
-
-{
-  "filename": "vacation.jpg",
-  "fileType": "image/jpeg",
-  "fileSizeInKb": 2048
-}
-
-→ 201 Created
-{
-  "photoId": "550e8400-e29b-41d4-a716-446655440000",
-  "tusdUploadUrl": "http://localhost:1080/files/"
-}
-
-
-STEP 2: Create TUS Upload on TUSd
-──────────────────────────────────
-POST http://localhost:1080/files/
-Upload-Length: 2097152
-Upload-Metadata: photoId NTUwZTg0MDAtZTI5Yi00MWQ0LWE3MTYtNDQ2NjU1NDQwMDAw,filename dmFjYXRpb24uanBn,filetype aW1hZ2UvanBlZw==
-Tus-Resumable: 1.0.0
-
-→ 201 Created
-Location: http://localhost:1080/files/550e8400-e29b-41d4-a716-446655440000
-
-IMPORTANT: photoId value in Upload-Metadata must be Base64-encoded.
-  Example: echo -n "550e8400-e29b-41d4-a716-446655440000" | base64
-  Result:  NTUwZTg0MDAtZTI5Yi00MWQ0LWE3MTYtNDQ2NjU1NDQwMDAw
-
-Behind the scenes: TUSd calls POST /tusd/hooks (pre-create).
-Spring Boot validates the photoId exists in PENDING status,
-and overrides the upload ID to match our UUID photoId.
-Status transitions: PENDING → UPLOADING.
-
-
-STEP 3: Upload File Chunks (Resumable)
-───────────────────────────────────────
-PATCH http://localhost:1080/files/550e8400-e29b-41d4-a716-446655440000
-Upload-Offset: 0
-Content-Type: application/offset+octet-stream
-Content-Length: <chunk size>
-
-<binary data>
-
-→ 204 No Content (continue with next chunk)
-→ OR → 200 OK (upload complete)
-
-
-STEP 4: Resuming an Interrupted Upload
-───────────────────────────────────────
-HEAD http://localhost:1080/files/550e8400-e29b-41d4-a716-446655440000
-Tus-Resumable: 1.0.0
-
-→ 200 OK
-Upload-Offset: 1048576
-Upload-Length: 2097152
-
-Resume PATCH from offset 1048576.
-
-
-STEP 5: On Completion (automatic)
-──────────────────────────────────
-TUSd calls POST /tusd/hooks (post-finish).
-Spring Boot marks photo as COMPLETED and stores the S3 key.
-No client action needed for this step.
-
-
-STEP 6: List Event Photos
-──────────────────────────
-GET /events/{evntId}/photos
-Authorization: Bearer <jwt>
-
-→ 200 OK
-[
-  {
-    "photoId": "550e8400-e29b-41d4-a716-446655440000",
-    "filename": "vacation.jpg",
-    "fileType": "image/jpeg",
-    "fileSizeInKb": 2048,
-    "photoPath": "a1b2c3d4e5f6...",
-    "photoStatus": "COMPLETED",
-    "uploadedByKptId": "0192f3a4-5678-9abc-def0-123456789abc",
-    "uploadedByName": "John Doe",
-    "createdAt": "2026-06-02T10:30:00",
-    "uploadCompletedAt": "2026-06-02T10:35:00",
-    "downloadUrl": "http://localhost:1080/files/550e8400-e29b-41d4-a716-446655440000"
-  }
-]
-
-To display/download the file: GET {downloadUrl}
-TUSd streams it directly from S3.
-
-
-STEP 7: Delete a Photo
-───────────────────────
-DELETE /events/{evntId}/photos/{photoId}
-Authorization: Bearer <jwt>
-
-→ 200 OK
-{ "message": "Photo deleted successfully" }
-
-Permission: Only the photo uploader or the event creator can delete.
-```
+### Upload Sequence (client must implement)
+1. **Init** — `POST /events/{evntId}/photos/init` (Bearer JWT) with `{filename, fileType, fileSizeInKb}` → `201` `{photoId (UUID), tusdUploadUrl}`.
+2. **Create TUS upload** — `POST {tusdUploadUrl}` with `Upload-Length` and `Upload-Metadata` (`photoId`, `filename`, `filetype`). **`Upload-Metadata` values MUST be Base64-encoded.** TUSd then calls `/tusd/hooks` (`pre-create`): Spring validates the photo is `PENDING` and overrides the upload ID to our UUID → `PENDING → UPLOADING`.
+3. **Upload chunks** — `PATCH {tusdUploadUrl}/{photoId}` with `Upload-Offset` + `Content-Type: application/offset+octet-stream` → `204` to continue, `200` when complete.
+4. **Resume** — `HEAD {tusdUploadUrl}/{photoId}` returns `Upload-Offset`/`Upload-Length`; resume the PATCH from that offset (resumability is fully TUSd-handled).
+5. **Completion (automatic)** — TUSd `post-finish` hook → Spring marks `COMPLETED` and stores the S3 key. No client action.
+6. **List** — `GET /events/{evntId}/photos` (Bearer) → `200` array; each item's `downloadUrl` (`{tusd.base-url}/{photoId}`) streams from S3.
+7. **Delete** — `DELETE /events/{evntId}/photos/{photoId}` (Bearer) → `200 {message}`. Only the uploader or the event creator may delete.
 
 ### PhotoUploadRequest DTO
-
 | Field | Type | Validation | Description |
 |-------|------|------------|-------------|
 | `filename` | String | `@NotBlank` | Original filename (e.g. "vacation.jpg") |
@@ -469,14 +213,12 @@ Permission: Only the photo uploader or the event creator can delete.
 | `fileSizeInKb` | Long | `@NotNull` | File size in kilobytes |
 
 ### PhotoUploadResponse DTO
-
 | Field | Type | Description |
 |-------|------|-------------|
 | `photoId` | UUID | UUID v4 assigned by server — also the TUSd upload ID |
 | `tusdUploadUrl` | String | TUSd base URL (e.g. `http://localhost:1080/files/`) |
 
 ### PhotoResponse DTO
-
 | Field | Type | Description |
 |-------|------|-------------|
 | `photoId` | UUID | UUID v4 public identifier |
@@ -492,7 +234,6 @@ Permission: Only the photo uploader or the event creator can delete.
 | `downloadUrl` | String | `http://localhost:1080/files/{photoId}` for streaming |
 
 ### AuthResponse DTO
-
 | Field | Type | Description |
 |-------|------|-------------|
 | `accessToken` | String | JWT token |
@@ -503,7 +244,6 @@ Permission: Only the photo uploader or the event creator can delete.
 | `imageUrl` | String | Profile picture URL (null for local users) |
 
 ### EventResponse DTO
-
 | Field | Type | Description |
 |-------|------|-------------|
 | `evntId` | UUID | Event's public ID |
@@ -517,7 +257,6 @@ Permission: Only the photo uploader or the event creator can delete.
 | `updatedAt` | ISO DateTime | Last update timestamp |
 
 ### PhotoStatus Lifecycle
-
 ```
 PENDING ──(pre-create hook passes)──▶ UPLOADING ──(post-finish hook)──▶ COMPLETED
    │                                      │
@@ -525,15 +264,8 @@ PENDING ──(pre-create hook passes)──▶ UPLOADING ──(post-finish hoo
 ```
 
 ### Error Responses
+All endpoints return consistent error JSON: `{ "error": "Human-readable error message" }`
 
-All endpoints return consistent error JSON:
-```json
-{
-  "error": "Human-readable error message"
-}
-```
-
-Common errors:
 | Status | Condition |
 |--------|-----------|
 | 400 | Validation failure, bad request |
@@ -543,275 +275,79 @@ Common errors:
 | 409 | Photo already being uploaded (status not PENDING) |
 
 ### Key Design Decisions for Client Developers
-
-1. **All IDs are UUIDs** — No more `KPT0000001`-style strings. All identifiers are standard UUIDs sent as strings in JSON.
-2. **`photoId` is a UUID** — generated server-side, used as the TUSd upload ID. Always the same for the same photo across all operations.
+1. **All IDs are UUIDs** — no more `KPT0000001`-style strings; all identifiers are standard UUIDs sent as strings in JSON.
+2. **`photoId` is a UUID** — generated server-side, used as the TUSd upload ID; always the same for the same photo across all operations.
 3. **`eventId` in photo endpoints is a UUID string** — the event's UUID, NOT an old-style string ID.
-4. **`tusdUploadUrl`** is just the base URL. Client appends nothing — the TUS protocol's `POST` to the base URL creates the upload resource.
+4. **`tusdUploadUrl`** is just the base URL. The TUS protocol's `POST` to the base URL creates the upload resource.
 5. **`Upload-Metadata`** values MUST be Base64-encoded strings in the TUS protocol.
 6. **Resumability** is fully handled by TUSd. Store the upload URL (`tusdUploadUrl + "/" + photoId`) and use `HEAD` to get the current offset.
 7. **Event membership is binary** — existence in EventMembersDtl = accepted member. No pending/rejected states.
-8. **Files served via TUSd** — download URL points to TUSd, which streams from S3.
-9. **Photo/video support** — fileType MIME string determines media type. No separate enum.
+8. **Files served via TUSd** — the download URL points to TUSd, which streams from S3.
+9. **Photo/video support** — `fileType` MIME string determines media type. No separate enum.
 
 ---
 
 ## 🔧 Configuration Reference
-
-### application.properties
-```properties
-# Server
-server.port=8080
-
-# Database
-spring.datasource.url=jdbc:postgresql://localhost:5432/kaptur?currentSchema=kaptur_schema
-spring.datasource.username=postgres
-spring.datasource.password=postgres
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.show-sql=true
-spring.jpa.properties.hibernate.default_schema=kaptur_schema
-
-# JWT
-app.jwtSecret=9a4f2c8d3b7a1e5f8g2h6i0j4k9l3m7n5o1p4q8r2s6t0u4v8w2x6y0z
-app.jwtExpirationMs=86400000  # 24 hours
-
-# Google OAuth
-google.client-id=73541242112-gedinu67qd0thfi5o2iflieh8gk38j2i.apps.googleusercontent.com
-
-# TUSd Server (resumable file uploads, stores to S3)
-tusd.base-url=http://localhost:1080/files
-```
+- **Server:** `server.port=8080`.
+- **Database:** `spring.datasource.url=jdbc:postgresql://localhost:5432/kaptur?currentSchema=kaptur_schema` (user/password `postgres`), `ddl-auto=update`, `hibernate.default_schema=kaptur_schema`.
+- **JWT:** `app.jwtSecret`, `app.jwtExpirationMs` (access, ~15 min), `app.jwtRefreshExpirationMs` (refresh, 30 days).
+- **Google OAuth:** `google.client-id`.
+- **TUSd:** `tusd.base-url=http://localhost:1080/files`.
+- **Security:** secrets currently live in `application.properties` — move them to env/secret storage before production.
 
 ---
 
 ## 📋 Development Workflows
-
-### Running the Application
-```bash
-# Windows
-.\mvnw.cmd spring-boot:run
-
-# Mac/Linux
-./mvnw spring-boot:run
-```
-
-### Building
-```bash
-.\mvnw.cmd clean package
-```
-
-### Testing
-```bash
-.\mvnw.cmd test
-```
-
-### Database
-- Uses `ddl-auto=update` for automatic schema management
-- Flyway is configured but migrations directory is empty
-- Schema: `kaptur_schema` in PostgreSQL
-- **Important:** The `USER_ROLE_MST` table must be seeded with role data before creating events. Run a SQL seed script or insert manually:
-
-```sql
-INSERT INTO kaptur_schema.USER_ROLE_MST (role_id, role_code, role_name, description, is_system_role, is_active, created_at, updated_at)
-VALUES
-  (gen_random_uuid(), 'SUPER_ADMIN', 'Super Administrator', 'Full system access', true, true, now(), now()),
-  (gen_random_uuid(), 'USER', 'User', 'Standard user', true, true, now(), now()),
-  (gen_random_uuid(), 'ADMIN', 'Administrator', 'Event administrator', true, true, now(), now()),
-  (gen_random_uuid(), 'PHOTOMAN', 'Photographer', 'Photo contributor', true, true, now(), now()),
-  (gen_random_uuid(), 'GUEST', 'Guest', 'Read-only access', true, true, now(), now());
-```
+- **Run:** `.\mvnw.cmd spring-boot:run` (Windows) / `./mvnw spring-boot:run` (mac/Linux).
+- **Build:** `.\mvnw.cmd clean package`. **Test:** `.\mvnw.cmd test`.
+- **Database:** `ddl-auto=update` manages the schema; Flyway is configured but its migrations directory is empty. **`USER_ROLE_MST` must be seeded manually (see backend README) before events can be created** — there is no auto-seeding.
 
 ---
 
 ## 🚨 Known Issues & Technical Debt
-
-### 1. OAuth2 Browser Flow Disabled
-- **Location:** `SecurityConfig.java`, `OAuth2AuthenticationSuccessHandler.java`
-- **Status:** Entirely commented out
-- **Reason:** Using native Google login for Flutter instead of browser-based OAuth2
-
-### 2. AuthTokenFilter Uses Stub Principal
-- **Location:** `AuthTokenFilter.java`
-- **Issue:** Creates a bare Spring Security `User` object instead of loading `CustomUserDetails` from DB. Controllers work around this by calling `userRepository.findByKptId()` directly in `getCurrentUser()`.
-- **Impact:** Role-based access control (`@PreAuthorize`) won't work since authorities are always empty.
-
-### 3. No Role-Based Access Control on Events
-- **Location:** `EventController.java`, `EventService.java`
-- **Issue:** Only checks if user is the creator. Does not use the `roleMst` relationship to grant MEMBER-level permissions.
-- **Missing:** Invite system, role-based permissions for members.
-
-### 4. Test Coverage
-- **Current:** Only `KapturApplicationTests.java` (context loads test)
-- **Missing:** Unit tests for services, integration tests for controllers
-
-### 5. Role Seed Data Required
-- The `USER_ROLE_MST` table must be manually seeded before the app can create events. No auto-seeding mechanism exists yet.
+1. **OAuth2 Browser Flow Disabled** — `SecurityConfig.java` / `OAuth2AuthenticationSuccessHandler.java` are entirely commented out (native Google login is used for Flutter instead).
+2. **AuthTokenFilter Uses Stub Principal** — `AuthTokenFilter.java` builds a bare Spring Security `User` instead of loading `CustomUserDetails`; controllers work around it via `userRepository.findByKptId()`. **Impact:** `@PreAuthorize` role checks won't work (authorities are always empty).
+3. **No Role-Based Access Control on Events** — `EventController`/`EventService` only check if the user is the creator; the `roleMst` relationship is not used to grant member-level permissions. **Missing:** invite system + role-based member permissions.
+4. **Test Coverage** — currently only `KapturApplicationTests.java` (context load). **Missing:** service unit tests + controller integration tests.
+5. **Role Seed Data Required** — `USER_ROLE_MST` must be manually seeded before events can be created; no auto-seeding mechanism exists.
 
 ---
 
-## 🎯 Extension Patterns
-
-When adding new features, follow this pattern:
-
-### 1. Define Enums (if needed)
-```java
-// src/main/java/com/koustav/kaptur/model/enums/NewEnum.java
-public enum NewEnum {
-    VALUE1, VALUE2
-}
-```
-
-### 2. Create Entity (UUID PK)
-```java
-// src/main/java/com/koustav/kaptur/model/NewEntity.java
-@Entity
-@Table(name = "new_entities")
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-public class NewEntity {
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
-    // ... fields
-}
-```
-
-### 3. Create Repository (UUID type parameter)
-```java
-// src/main/java/com/koustav/kaptur/repository/NewEntityRepository.java
-@Repository
-public interface NewEntityRepository extends JpaRepository<NewEntity, UUID> {
-    // Custom query methods with UUID params
-}
-```
-
-### 4. Create DTOs
-```java
-// src/main/java/com/koustav/kaptur/dto/NewEntityRequest.java
-@Data
-public class NewEntityRequest {
-    @NotBlank(message = "Field is required")
-    private String field;
-}
-
-// src/main/java/com/koustav/kaptur/dto/NewEntityResponse.java
-@Data
-@Builder
-public class NewEntityResponse {
-    private UUID id;
-    private String field;
-}
-```
-
-### 5. Create Service
-```java
-// src/main/java/com/koustav/kaptur/services/NewEntityService.java
-@Service
-@RequiredArgsConstructor
-public class NewEntityService {
-    private final NewEntityRepository repository;
-    
-    @Transactional
-    public NewEntityResponse create(NewEntityRequest request, User currentUser) {
-        // Business logic
-    }
-}
-```
-
-### 6. Create Controller
-```java
-// src/main/java/com/koustav/kaptur/controllers/NewEntityController.java
-@RestController
-@RequestMapping("/new-entities")
-@RequiredArgsConstructor
-public class NewEntityController {
-    private final NewEntityService service;
-    private final UserRepository userRepository;
-    
-    @PostMapping
-    public ResponseEntity<NewEntityResponse> create(@Valid @RequestBody NewEntityRequest request) {
-        User currentUser = getCurrentUser();
-        return new ResponseEntity<>(service.create(request, currentUser), HttpStatus.CREATED);
-    }
-    
-    private User getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        UUID kptId = UUID.fromString(authentication.getName());
-        return userRepository.findByKptId(kptId)
-            .orElseThrow(() -> new RuntimeException("User not found"));
-    }
-}
-```
+## 🎯 Adding a New Feature — Required Steps
+1. **Enum** (if needed) under `model/enums/`.
+2. **Entity** — UUID PK; `@Getter`/`@Setter` (not `@Data`); LAZY `@ManyToOne`.
+3. **Repository** — `extends JpaRepository<Entity, UUID>`.
+4. **DTOs** — `@Data` request (with validation) + response (never leak entities).
+5. **Service** — `@Service`, `@Transactional` on writes, business logic only.
+6. **Controller** — `@RestController` wiring DTOs; resolve the caller via `getCurrentUser()`.
+7. **Bruno request file — REQUIRED, in the same change as the endpoint (every time):**
+   - Add `bruno/Kaptur/<Name>.yml` (OpenCollection YAML) mirroring `Login.yml` / `CreateEvent.yml`, with sections: `info` (name, `type: http`, seq, tags), `http` (method, url `http://127.0.0.1:8080/...`, body, auth), `runtime` (a `res.status` assertion + an `after-response` script to capture returned tokens/IDs), `settings`, `docs` (purpose, expected status, run order).
+   - Public endpoints use `auth: inherit`; protected use `auth: {type: bearer, token: "{{token}}"}`.
+   - Chain IDs/tokens with `bru.setVar("token", res.body.accessToken)` / `bru.setVar("eventId", res.body.evntId)` / `bru.setVar("photoId", res.body.photoId)` and reference them as `{{token}}` / `{{eventId}}` / `{{photoId}}`.
+   - An endpoint is **NOT done** until its Bruno file exists, its embedded JSON body is valid, and it is listed in the API Reference above.
 
 ---
 
 ## 💡 Best Practices for This Codebase
-
 1. **Always use DTOs** - Never return entities directly. `AuthResponse` uses safe fields (kptId, email, name, imageUrl), not the full User entity.
-2. **Use @Transactional** - For methods that modify multiple entities
-3. **Soft delete** - Use `isDeleted` flag instead of hard delete
+2. **Use @Transactional** - For methods that modify multiple entities.
+3. **Soft delete** - Use the `isDeleted` flag instead of hard delete.
 4. **UUID PKs** - All entities use UUID primary keys. Use `UuidCreator.getTimeOrderedEpoch()` for UUIDv7 where B-tree performance matters.
-5. **Verbose comments** - Explain what and why, not just what
-6. **Educational code** - Step-by-step logic, descriptive variables
-7. **Error handling** - Throw RuntimeException with clear messages
-8. **Security** - Always validate user ownership/membership before modifications
+5. **Verbose comments** - Explain what and why, not just what.
+6. **Educational code** - Step-by-step logic, descriptive variables.
+7. **Error handling** - Throw RuntimeException with clear messages.
+8. **Security** - Always validate user ownership/membership before modifications.
 9. **LAZY fetching** - All `@ManyToOne` relationships use `FetchType.LAZY`. Exclude from `@ToString` and `@EqualsAndHashCode`.
 10. **No composite keys** - All entities use single UUID PKs. Unique constraints are defined via `@UniqueConstraint`.
 
 ---
 
-## 🔍 Quick Reference: Common Tasks
-
-### Get Current User
-```java
-private User getCurrentUser() {
-    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-    String kptIdStr = authentication.getName(); // UUID string from JWT subject
-    UUID kptId = UUID.fromString(kptIdStr);
-    return userRepository.findByKptId(kptId)
-        .orElseThrow(() -> new RuntimeException("User not found with ID: " + kptIdStr));
-}
-```
-
-### Generate UUID PK
-```java
-// For UUIDv7 (time-ordered, index-friendly):
-import com.github.f4b6a3.uuid.UuidCreator;
-UUID uuid = UuidCreator.getTimeOrderedEpoch();
-
-// For UUIDv4 (random):
-UUID uuid = UUID.randomUUID();
-
-// Set on entity before save:
-entity.setEvntId(UuidCreator.getTimeOrderedEpoch());
-repository.save(entity);
-```
-
-### Check Ownership (UUID comparison)
-```java
-if (!event.getCreatedBy().getKptId().equals(currentUser.getKptId())) {
-    throw new RuntimeException("Not authorized");
-}
-```
-
-### Validate Event Membership (existence = accepted)
-```java
-List<EventMembersDtl> memberships = eventMembersRepository.findByEventId(eventUuid);
-boolean isMember = memberships.stream()
-    .anyMatch(m -> m.getUser().getKptId().equals(userUuid));
-if (!isMember) {
-    throw new RuntimeException("You must be a member of this event");
-}
-```
-
-### Look Up Role from Master Table
-```java
-UserRoleMst adminRole = userRoleMstRepository.findByRoleCode(Role.ADMIN)
-    .orElseThrow(() -> new RuntimeException("ADMIN role not found"));
-```
+## 🔍 Quick Reference: Common Tasks (no code)
+- **Get current user:** parse `authentication.getName()` (kptId UUID string) → `UUID.fromString` → `userRepository.findByKptId(uuid)`, throw if absent.
+- **Generate UUID PK:** UUIDv7 = `UuidCreator.getTimeOrderedEpoch()`; UUIDv4 = `UUID.randomUUID()`; set on the entity before save.
+- **Ownership check:** compare `entity.getCreatedBy().getKptId()` with `currentUser.getKptId()`.
+- **Validate event membership:** a row in `EventMembersDtl` for (event, user) = accepted member.
+- **Look up a role:** `userRoleMstRepository.findByRoleCode(...)`.
 
 ---
 

@@ -1,0 +1,54 @@
+info:
+  name: Tusd Hook
+  type: http
+  seq: 14
+  tags:
+    - tusd
+
+http:
+  method: POST
+  url: "http://127.0.0.1:8080/tusd/hooks"
+  body:
+    type: json
+    data: |-
+      {
+        "Type": "pre-create",
+        "Event": {
+          "Upload": {
+            "ID": "some-tusd-id",
+            "Size": 2097152,
+            "Offset": 0,
+            "MetaData": {
+              "photoId": "{{photoId}}",
+              "filename": "beach-sunset.jpg",
+              "filetype": "image/jpeg"
+            }
+          }
+        }
+      }
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |-
+  Simulates a TUSd server webhook. This endpoint is public (TUSd calls it directly,
+  no JWT). The body mirrors a real `pre-create` hook using TUSd's capitalized keys.
+
+  In `pre-create` the backend reads the photo id from `MetaData.photoId` and, if
+  that photo is PENDING, responds with `ChangeFileInfo.ID` so the upload uses the
+  photo UUID. Change `Type` to `post-finish` (needs `Storage.Key`) or
+  `post-terminate` to exercise those hooks: post-finish marks COMPLETED and stores
+  the S3 key, post-terminate marks FAILED.
+
+  Requires: run Init Photo Upload first so `{{photoId}}` points to a PENDING photo.

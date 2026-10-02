@@ -1,0 +1,41 @@
+info:
+  name: Update Event
+  type: http
+  seq: 9
+  tags:
+    - events
+
+http:
+  method: PUT
+  url: "http://127.0.0.1:8080/events/{{eventId}}"
+  body:
+    type: json
+    data: |-
+      {
+        "eventTitle": "Beach Wedding (Updated)",
+        "description": "Updated description",
+        "eventDate": "2026-06-16",
+        "eventLocation": "Goa, India"
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |-
+  Updates an event you created (only the event creator may update). Returns 200
+  with the updated event.
+
+  Requires: run Login (for `{{token}}`) and Create Event (for `{{eventId}}`) first.

@@ -1,0 +1,32 @@
+info:
+  name: List Event Photos
+  type: http
+  seq: 12
+  tags:
+    - photos
+
+http:
+  method: GET
+  url: "http://127.0.0.1:8080/events/{{eventId}}/photos"
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |-
+  Lists all non-deleted photos for an event, each with a `downloadUrl` pointing at
+  the TUSd server. Returns 200 with an array of photos.
+
+  Requires: run Login (for `{{token}}`) and Create Event (for `{{eventId}}`) first.

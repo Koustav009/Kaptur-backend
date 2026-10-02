@@ -1,0 +1,48 @@
+info:
+  name: Create Event
+  type: http
+  seq: 6
+  tags:
+    - events
+
+http:
+  method: POST
+  url: "http://127.0.0.1:8080/events"
+  body:
+    type: json
+    data: |-
+      {
+        "eventTitle": "Beach Wedding",
+        "description": "Sunset couple photoshoot on the beach",
+        "eventDate": "2026-06-15",
+        "eventLocation": "Goa, India"
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        bru.setVar("eventId", res.body.evntId);
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "201"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |-
+  Creates a new event owned by the current user. `eventDate` is `YYYY-MM-DD`.
+  Returns 201 with the created event; `evntId` is a UUID.
+
+  On success this request stores `eventId`, consumed by the Get/Update/Delete
+  Event and all Photos requests via `{{eventId}}`.
+
+  Requires: run Login first so `{{token}}` is set.

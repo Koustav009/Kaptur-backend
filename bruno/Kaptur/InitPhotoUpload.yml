@@ -1,0 +1,48 @@
+info:
+  name: Init Photo Upload
+  type: http
+  seq: 11
+  tags:
+    - photos
+
+http:
+  method: POST
+  url: "http://127.0.0.1:8080/events/{{eventId}}/photos/init"
+  body:
+    type: json
+    data: |-
+      {
+        "filename": "beach-sunset.jpg",
+        "fileType": "image/jpeg",
+        "fileSizeInKb": 2048
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        bru.setVar("photoId", res.body.photoId);
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "201"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |-
+  Registers a PENDING photo record and returns the `photoId` (UUID) plus the TUSd
+  upload URL (`tusdUploadUrl`) where the client uploads the actual bytes.
+
+  On success this request stores `photoId`, consumed by Delete Photo and the
+  Tusd Hook request via `{{photoId}}`.
+
+  Requires: run Login (for `{{token}}`) and Create Event (for `{{eventId}}`) first.
+  You must be a member of the event (the creator automatically is).

@@ -1,0 +1,33 @@
+info:
+  name: Delete Photo
+  type: http
+  seq: 13
+  tags:
+    - photos
+
+http:
+  method: DELETE
+  url: "http://127.0.0.1:8080/events/{{eventId}}/photos/{{photoId}}"
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |-
+  Soft-deletes a photo. Only the uploader or the event creator may delete. Returns
+  200 with a success message.
+
+  Requires: run Login (for `{{token}}`), Create Event (for `{{eventId}}`), and
+  Init Photo Upload (for `{{photoId}}`) first.

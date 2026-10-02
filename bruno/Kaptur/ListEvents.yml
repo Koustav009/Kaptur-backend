@@ -1,0 +1,32 @@
+info:
+  name: List Events
+  type: http
+  seq: 7
+  tags:
+    - events
+
+http:
+  method: GET
+  url: "http://127.0.0.1:8080/events"
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |-
+  Lists the active events created/joined by the current user. Returns 200 with an
+  array of events.
+
+  Requires: run Login first so `{{token}}` is set.

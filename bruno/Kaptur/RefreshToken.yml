@@ -1,19 +1,18 @@
 info:
-  name: Login
+  name: Refresh Token
   type: http
-  seq: 1
+  seq: 4
   tags:
     - auth
 
 http:
   method: POST
-  url: "http://127.0.0.1:8080/auth/login"
+  url: "http://127.0.0.1:8080/auth/refresh"
   body:
     type: json
     data: |-
       {
-        "email": "rupam@gmail.com",
-        "password": "12345"
+        "refreshToken": "{{refreshToken}}"
       }
   auth: inherit
 
@@ -36,11 +35,8 @@ settings:
   forwardAuthorizationHeader: false
 
 docs: |-
-  Authenticates a user with email/password and returns JWT tokens.
+  Exchanges a valid refresh token for a brand-new access token (and a rotated
+  refresh token) without re-entering credentials.
 
-  On success this request stores collection variables used by the rest of the
-  collection:
-  - `token` -> access token, consumed by protected requests via `{{token}}`
-  - `refreshToken` -> used by the Refresh Token request
-
-  Run this first to unlock the Events and Photos requests.
+  Requires: run Login (or Google Login) first so `{{refreshToken}}` is set.
+  On success it refreshes the stored `token` / `refreshToken` variables.

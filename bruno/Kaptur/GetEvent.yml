@@ -1,0 +1,31 @@
+info:
+  name: Get Event
+  type: http
+  seq: 8
+  tags:
+    - events
+
+http:
+  method: GET
+  url: "http://127.0.0.1:8080/events/{{eventId}}"
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |-
+  Fetches a single event by its `evntId` (UUID). Returns 200 with the event.
+
+  Requires: run Login (for `{{token}}`) and Create Event (for `{{eventId}}`) first.
