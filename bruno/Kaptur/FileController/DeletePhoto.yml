@@ -1,13 +1,13 @@
 info:
   name: Delete Photo
   type: http
-  seq: 13
+  seq: 3
   tags:
     - photos
 
 http:
   method: DELETE
-  url: "http://127.0.0.1:8080/events/{{eventId}}/photos/{{photoId}}"
+  url: http://127.0.0.1:8080/events/{{eventId}}/photos/{{photoId}}
   auth:
     type: bearer
     token: "{{token}}"

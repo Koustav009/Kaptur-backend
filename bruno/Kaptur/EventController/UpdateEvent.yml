@@ -1,13 +1,13 @@
 info:
   name: Update Event
   type: http
-  seq: 9
+  seq: 4
   tags:
     - events
 
 http:
   method: PUT
-  url: "http://127.0.0.1:8080/events/{{eventId}}"
+  url: http://127.0.0.1:8080/events/{{eventId}}
   body:
     type: json
     data: |-

@@ -1,13 +1,13 @@
 info:
-  name: List Events
+  name: Get Event
   type: http
-  seq: 7
+  seq: 3
   tags:
     - events
 
 http:
   method: GET
-  url: "http://127.0.0.1:8080/events"
+  url: http://127.0.0.1:8080/events/{{eventId}}
   auth:
     type: bearer
     token: "{{token}}"
@@ -26,7 +26,6 @@ settings:
   forwardAuthorizationHeader: false
 
 docs: |-
-  Lists the active events created/joined by the current user. Returns 200 with an
-  array of events.
+  Fetches a single event by its `evntId` (UUID). Returns 200 with the event.
 
-  Requires: run Login first so `{{token}}` is set.
+  Requires: run Login (for `{{token}}`) and Create Event (for `{{eventId}}`) first.

@@ -1,13 +1,13 @@
 info:
   name: Create Event
   type: http
-  seq: 6
+  seq: 1
   tags:
     - events
 
 http:
   method: POST
-  url: "http://127.0.0.1:8080/events"
+  url: http://127.0.0.1:8080/events
   body:
     type: json
     data: |-
@@ -24,8 +24,7 @@ http:
 runtime:
   scripts:
     - type: after-response
-      code: |-
-        bru.setVar("eventId", res.body.evntId);
+      code: bru.setVar("eventId", res.body.evntId);
   assertions:
     - expression: res.status
       operator: eq

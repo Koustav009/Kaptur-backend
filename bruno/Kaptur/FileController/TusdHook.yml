@@ -1,13 +1,13 @@
 info:
   name: Tusd Hook
   type: http
-  seq: 14
+  seq: 4
   tags:
     - tusd
 
 http:
   method: POST
-  url: "http://127.0.0.1:8080/tusd/hooks"
+  url: http://127.0.0.1:8080/tusd/hooks
   body:
     type: json
     data: |-

@@ -1,13 +1,13 @@
 info:
   name: Init Photo Upload
   type: http
-  seq: 11
+  seq: 1
   tags:
     - photos
 
 http:
   method: POST
-  url: "http://127.0.0.1:8080/events/{{eventId}}/photos/init"
+  url: http://127.0.0.1:8080/events/{{eventId}}/photos/init
   body:
     type: json
     data: |-
@@ -23,8 +23,7 @@ http:
 runtime:
   scripts:
     - type: after-response
-      code: |-
-        bru.setVar("photoId", res.body.photoId);
+      code: bru.setVar("photoId", res.body.photoId);
   assertions:
     - expression: res.status
       operator: eq

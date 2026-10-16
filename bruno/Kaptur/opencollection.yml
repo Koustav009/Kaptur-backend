@@ -2,6 +2,22 @@ opencollection: 1.0.0
 
 info:
   name: Kaptur
+config:
+  proxy:
+    inherit: true
+    config:
+      protocol: http
+      hostname: ""
+      port: ""
+      auth:
+        username: ""
+        password: ""
+      bypassProxy: ""
+
+request:
+  variables:
+    - name: eventId
+      value: 01a0fd74-dc69-7621-995a-baed45115ac2
 bundled: false
 extensions:
   bruno:
